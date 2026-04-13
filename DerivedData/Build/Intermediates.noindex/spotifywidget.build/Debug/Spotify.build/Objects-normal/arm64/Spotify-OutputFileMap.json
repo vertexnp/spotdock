@@ -1,0 +1,69 @@
+{
+  "" : {
+    "diagnostics" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/Spotify-primary.dia",
+    "emit-module-dependencies" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/Spotify-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/Spotify-primary-emit-module.dia",
+    "pch" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/Spotify-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/Spotify-primary.swiftdeps"
+  },
+  "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  },
+  "/Users/pranabkc/dev/spotifywidget/Spotify/MiniPlayerView.swift" : {
+    "const-values" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerView.swiftconstvalues",
+    "dependencies" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerView.d",
+    "diagnostics" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerView.dia",
+    "index-unit-output-path" : "/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerView.o",
+    "llvm-bc" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerView.bc",
+    "object" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerView.o",
+    "swift-dependencies" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerView.swiftdeps",
+    "swiftmodule" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerView~partial.swiftmodule"
+  },
+  "/Users/pranabkc/dev/spotifywidget/Spotify/MiniPlayerWindow.swift" : {
+    "const-values" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerWindow.swiftconstvalues",
+    "dependencies" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerWindow.d",
+    "diagnostics" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerWindow.dia",
+    "index-unit-output-path" : "/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerWindow.o",
+    "llvm-bc" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerWindow.bc",
+    "object" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerWindow.o",
+    "swift-dependencies" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerWindow.swiftdeps",
+    "swiftmodule" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/MiniPlayerWindow~partial.swiftmodule"
+  },
+  "/Users/pranabkc/dev/spotifywidget/Spotify/SpotifyApp.swift" : {
+    "const-values" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyApp.swiftconstvalues",
+    "dependencies" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyApp.d",
+    "diagnostics" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyApp.dia",
+    "index-unit-output-path" : "/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyApp.o",
+    "llvm-bc" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyApp.bc",
+    "object" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyApp.o",
+    "swift-dependencies" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyApp.swiftdeps",
+    "swiftmodule" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyApp~partial.swiftmodule"
+  },
+  "/Users/pranabkc/dev/spotifywidget/Spotify/SpotifyPlayer.swift" : {
+    "const-values" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyPlayer.swiftconstvalues",
+    "dependencies" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyPlayer.d",
+    "diagnostics" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyPlayer.dia",
+    "index-unit-output-path" : "/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyPlayer.o",
+    "llvm-bc" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyPlayer.bc",
+    "object" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyPlayer.o",
+    "swift-dependencies" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyPlayer.swiftdeps",
+    "swiftmodule" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/SpotifyPlayer~partial.swiftmodule"
+  },
+  "/Users/pranabkc/dev/spotifywidget/Spotify/VisualEffectView.swift" : {
+    "const-values" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/VisualEffectView.swiftconstvalues",
+    "dependencies" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/VisualEffectView.d",
+    "diagnostics" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/VisualEffectView.dia",
+    "index-unit-output-path" : "/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/VisualEffectView.o",
+    "llvm-bc" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/VisualEffectView.bc",
+    "object" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/VisualEffectView.o",
+    "swift-dependencies" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/VisualEffectView.swiftdeps",
+    "swiftmodule" : "/Users/pranabkc/dev/spotifywidget/DerivedData/Build/Intermediates.noindex/spotifywidget.build/Debug/Spotify.build/Objects-normal/arm64/VisualEffectView~partial.swiftmodule"
+  }
+}
