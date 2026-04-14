@@ -33,9 +33,31 @@ struct SpotifyApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            SpotifyMenuView(miniPlayerController: $viewModel.miniPlayerController)
-                .frame(width: themeManager.currentTheme == .classic ? 280 : 300)
-                .padding(themeManager.currentTheme == .classic ? 8 : 16)
+            ZStack(alignment: .topTrailing) {
+                SpotifyMenuView(miniPlayerController: $viewModel.miniPlayerController)
+                    .frame(width: themeManager.currentTheme == .classic ? 280 : 300)
+                    .padding(themeManager.currentTheme == .classic ? 8 : 16)
+                
+                // Distinct top-right settings button for modern themes
+                if themeManager.currentTheme != .classic {
+                    SettingsLink {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white.opacity(0.8))
+                            .frame(width: 28, height: 28)
+                            .background(
+                                Circle()
+                                    .fill(Color.black.opacity(0.3))
+                                    .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .padding(10)
+                    .onTapGesture {
+                        NSApp.activate(ignoringOtherApps: true)
+                    }
+                }
+            }
         } label: {
             Image("SpotifyIcon")
                 .resizable()
@@ -101,19 +123,21 @@ struct SpotifyMenuView: View {
                 )
             }
             
-            Divider()
+            if themeManager.currentTheme == .classic {
+                Divider()
 
-            HStack {
-                Spacer()
-                SettingsLink {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 14))
-                        .foregroundColor(menuConfiguration.menuTextColor.opacity(0.7))
-                }
-                .buttonStyle(.plain)
-                .help("Settings")
-                .onTapGesture {
-                    NSApp.activate(ignoringOtherApps: true)
+                HStack {
+                    Spacer()
+                    SettingsLink {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 14))
+                            .foregroundColor(menuConfiguration.menuTextColor.opacity(0.7))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Settings")
+                    .onTapGesture {
+                        NSApp.activate(ignoringOtherApps: true)
+                    }
                 }
             }
         }
