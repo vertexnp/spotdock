@@ -2,170 +2,237 @@ import SwiftUI
 
 struct SettingsView: View {
     @State private var selection: String? = "General"
-    @State private var searchText = ""
-    
+
     let categories = [
-        ("General", "gear"),
-        ("Theme", "paintpalette"),
-        ("About", "info.circle"),
-        ("Help", "questionmark.circle"),
-        ("Quit", "power")
+        ("General", "gearshape"),
+        ("Appearance", "paintpalette"),
+        ("About", "info.circle")
     ]
-    
-    var filteredCategories: [(String, String)] {
-        if searchText.isEmpty {
-            return categories
-        } else {
-            return categories.filter { $0.0.localizedCaseInsensitiveContains(searchText) }
-        }
-    }
-    
+
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selection) {
-                Section {
-                    ForEach(filteredCategories, id: \.0) { category in
-                        NavigationLink(value: category.0) {
-                            Label(category.0, systemImage: category.1)
-                        }
-                    }
+        TabView(selection: $selection) {
+            GeneralSettingsView()
+                .tabItem {
+                    Label("General", systemImage: "gearshape")
                 }
-            }
-            .listStyle(.sidebar)
-            .searchable(text: $searchText, placement: .sidebar, prompt: "Search")
-            .frame(minWidth: 200)
-        } detail: {
-            if let selection = selection {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        Text(selection)
-                            .font(.system(size: 24, weight: .bold))
-                            .padding(.bottom, 10)
-                        
-                        switch selection {
-                        case "General": GeneralSettingsView()
-                        case "Theme": ThemeSettingsView()
-                        case "About": AboutSettingsView()
-                        case "Help": HelpSettingsView()
-                        case "Quit": QuitSettingsView()
-                        default: Text("Select a category")
-                        }
-                    }
-                    .padding(30)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                .tag("General" as String?)
+
+            ThemeSettingsView()
+                .tabItem {
+                    Label("Appearance", systemImage: "paintpalette")
                 }
-                .background(Color(NSColor.windowBackgroundColor))
-            } else {
-                Text("Select a category")
-                    .foregroundColor(.secondary)
-            }
+                .tag("Appearance" as String?)
+
+            AboutSettingsView()
+                .tabItem {
+                    Label("About", systemImage: "info.circle")
+                }
+                .tag("About" as String?)
         }
-        .frame(width: 750, height: 500)
+        .frame(width: 480, height: 380)
     }
 }
 
 struct GeneralSettingsView: View {
     @AppStorage("launchAtLogin") private var launchAtLogin = false
     @AppStorage("showLyricsByDefault") private var showLyricsByDefault = false
-    @AppStorage("groupSecondaryActions") private var groupSecondaryActions = true
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 25) {
-            SettingsSection(title: "App Behavior") {
-                Toggle("Launch at Login", isOn: $launchAtLogin)
-                Divider()
-                Toggle("Show Lyrics by Default", isOn: $showLyricsByDefault)
-                Divider()
-                Toggle("Group Secondary Actions", isOn: $groupSecondaryActions)
-                    .help("Clusters settings and power icons at the corners of the menu.")
-            }
-            
-            SettingsSection(title: "Account") {
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("Spotify Account")
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 24) {
+                // Launch at Login
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Launch at Login")
                             .font(.body)
-                        Text("Manage your authenticated session")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .fontWeight(.medium)
+                        Spacer()
+                        Toggle("", isOn: $launchAtLogin)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
                     }
-                    Spacer()
-                    Button("Logout") {
-                        SpotifyPlayer.shared.logout()
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
+                    Text("Automatically start when you log in")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(nsColor: NSColor.controlBackgroundColor))
+                .cornerRadius(10)
+
+                // Show Lyrics by Default
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Show Lyrics by Default")
+                            .font(.body)
+                            .fontWeight(.medium)
+                        Spacer()
+                        Toggle("", isOn: $showLyricsByDefault)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                    }
+                    Text("Open lyrics view when mini player launches")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(nsColor: NSColor.controlBackgroundColor))
+                .cornerRadius(10)
+
+                Spacer()
+
+                // Logout
+                VStack(alignment: .leading, spacing: 8) {
+                    Divider()
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Spotify Account")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(SpotifyPlayer.shared.isAuthenticated ? "Connected" : "Not connected")
+                                .font(.subheadline)
+                                .foregroundColor(SpotifyPlayer.shared.isAuthenticated ? .green : .secondary)
+                        }
+                        Spacer()
+                        if SpotifyPlayer.shared.isAuthenticated {
+                            Button("Logout") {
+                                SpotifyPlayer.shared.logout()
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.red.opacity(0.8))
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
+            .padding(20)
         }
+        .background(Color(nsColor: NSColor.windowBackgroundColor))
     }
 }
 
 struct ThemeSettingsView: View {
-    @AppStorage("selectedTheme") private var selectedTheme = "Dark"
-    @AppStorage("showAlbumArt") private var showAlbumArt = true
-    @AppStorage("miniPlayerOpacity") private var miniPlayerOpacity = 0.9
-    @AppStorage("menuAppLook") private var menuAppLook = "Default"
-    @AppStorage("miniPlayerLook") private var miniPlayerLook = "Default"
-    @AppStorage("miniPlayerCompactMode") private var miniPlayerCompactMode = false
-    
-    let themes = ["Dark", "Light", "Spotify Green", "Glassmorphism"]
-    let looks = ["Default", "Retro Radio"]
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 25) {
-            HStack(spacing: 20) {
-                VStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(menuAppLook == "Retro Radio" ? Color(red: 0.2, green: 0.15, blue: 0.1) : Color(white: 0.15))
-                        .frame(width: 120, height: 80)
-                        .overlay(Text("Menu").font(.caption2).foregroundColor(.secondary))
-                    Text("Menu App").font(.caption).bold()
-                }
-                
-                VStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(miniPlayerLook == "Retro Radio" ? Color(red: 0.2, green: 0.15, blue: 0.1) : Color(white: 0.15))
-                        .frame(width: 120, height: 80)
-                        .overlay(Text("Mini").font(.caption2).foregroundColor(.secondary))
-                    Text("Mini Player").font(.caption).bold()
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.black.opacity(0.05))
-            .cornerRadius(12)
+    @StateObject private var themeManager = ThemeManager.shared
 
-            SettingsSection(title: "Interface") {
-                Picker("Theme", selection: $selectedTheme) {
-                    ForEach(themes, id: \.self) { Text($0) }
-                }
-                Divider()
-                Picker("Menu App Look", selection: $menuAppLook) {
-                    ForEach(looks, id: \.self) { Text($0) }
-                }
-                Divider()
-                Picker("Mini Player Look", selection: $miniPlayerLook) {
-                    ForEach(looks, id: \.self) { Text($0) }
-                }
-            }
-            
-            SettingsSection(title: "Mini Player Settings") {
-                Toggle("Show Album Art", isOn: $showAlbumArt)
-                Divider()
-                Toggle("Compact Mode", isOn: $miniPlayerCompactMode)
-                    .help("Shrinks album art to provide more room for text.")
-                Divider()
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Opacity")
-                        Spacer()
-                        Text("\(Int(miniPlayerOpacity * 100))%")
-                            .foregroundColor(.secondary)
+    var body: some View {
+        VStack(spacing: 0) {
+            // Theme Selection Cards
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Theme")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 4)
+
+                HStack(spacing: 12) {
+                    ForEach(AppTheme.allCases) { theme in
+                        ThemeCard(
+                            theme: theme,
+                            isSelected: themeManager.currentTheme == theme,
+                            onTap: { themeManager.setTheme(theme) }
+                        )
                     }
-                    Slider(value: $miniPlayerOpacity, in: 0.5...1.0)
                 }
             }
+            .padding(20)
+
+            Spacer()
+        }
+        .background(Color(nsColor: NSColor.windowBackgroundColor))
+    }
+}
+
+struct ThemeCard: View {
+    let theme: AppTheme
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 10) {
+                // Mini preview
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(themeBackgroundColor)
+                        .frame(width: 120, height: 80)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2.5)
+                        )
+
+                    // Mini content preview
+                    HStack(spacing: 0) {
+                        // Album art placeholder
+                        Rectangle()
+                            .fill(themeAccentColor.opacity(0.3))
+                            .frame(width: 32)
+                            .clipped()
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(themeTextColor)
+                                .frame(width: 45, height: 4)
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(themeTextColor.opacity(0.5))
+                                .frame(width: 35, height: 3)
+                            Spacer()
+                            HStack(spacing: 6) {
+                                Circle().fill(themeTextColor.opacity(0.6)).frame(width: 4, height: 4)
+                                Circle().fill(themeTextColor).frame(width: 6, height: 6)
+                                Circle().fill(themeTextColor.opacity(0.6)).frame(width: 4, height: 4)
+                            }
+                            .padding(.bottom, 6)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 8)
+                    }
+                    .frame(width: 120, height: 80)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                Text(theme.displayName)
+                    .font(.caption)
+                    .fontWeight(isSelected ? .semibold : .regular)
+                    .foregroundColor(isSelected ? .primary : .secondary)
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 4)
+            .background(isSelected ? Color.accentColor.opacity(0.08) : Color.clear)
+            .cornerRadius(14)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var themeBackgroundColor: Color {
+        switch theme {
+        case .classic:
+            return Color(white: 0.12)
+        case .minimal:
+            return Color(white: 0.12)
+        case .fanFav:
+            return Color(red: 0.15, green: 0.25, blue: 0.15)
+        }
+    }
+
+    private var themeTextColor: Color {
+        switch theme {
+        case .fanFav:
+            return Color(red: 0.9, green: 1.0, blue: 0.7)
+        default:
+            return .white
+        }
+    }
+
+    private var themeAccentColor: Color {
+        switch theme {
+        case .classic:
+            return .green
+        case .minimal:
+            return .white
+        case .fanFav:
+            return Color(red: 0.9, green: 1.0, blue: 0.7)
         }
     }
 }
@@ -173,110 +240,40 @@ struct ThemeSettingsView: View {
 struct AboutSettingsView: View {
     var body: some View {
         VStack(spacing: 20) {
-            Image("SpotifyIcon")
-                .resizable()
-                .frame(width: 80, height: 80)
-                .shadow(radius: 5)
-            
-            VStack(spacing: 5) {
+            Spacer()
+
+            Image(systemName: "music.note.list")
+                .font(.system(size: 40))
+                .foregroundColor(.accentColor)
+
+            VStack(spacing: 4) {
                 Text("Spotify Widget")
                     .font(.title2)
-                    .bold()
-                Text("Version 1.0.0 (Build 1)")
+                    .fontWeight(.semibold)
+                Text("Version 1.0.0")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
-            SettingsSection(title: "Developer") {
-                HStack {
-                    Text("Created by")
-                    Spacer()
-                    Text("Pranab")
-                        .foregroundColor(.secondary)
-                }
-                Divider()
-                Text("A modern Spotify controller for macOS inspired by system widgets.")
-                    .font(.callout)
-                    .foregroundColor(.secondary)
-                    .padding(.vertical, 5)
-            }
-        }
-    }
-}
 
-struct HelpSettingsView: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            SettingsSection(title: "Resources") {
-                Link(destination: URL(string: "https://developer.spotify.com/documentation/web-api/")!) {
-                    HStack {
-                        Label("Spotify API Docs", systemImage: "safari")
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption)
-                    }
-                }
-                Divider()
-                Link(destination: URL(string: "https://github.com/pranabkc/spotifywidget/issues")!) {
-                    HStack {
-                        Label("Report an Issue", systemImage: "ladybug")
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption)
-                    }
-                }
-            }
-        }
-    }
-}
-
-struct QuitSettingsView: View {
-    var body: some View {
-        SettingsSection(title: "Exit") {
-            Text("Close the application and stop background polling.")
-                .font(.callout)
-                .foregroundColor(.secondary)
-                .padding(.bottom, 10)
-            
-            Button(role: .destructive) {
-                NSApplication.shared.terminate(nil)
-            } label: {
-                Text("Quit Spotify Widget")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-        }
-    }
-}
-
-struct SettingsSection<Content: View>: View {
-    let title: String
-    let content: Content
-    
-    init(title: String, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
+            Text("A modern Spotify controller for macOS")
                 .font(.caption)
-                .bold()
                 .foregroundColor(.secondary)
-                .padding(.leading, 5)
-            
-            VStack(alignment: .leading, spacing: 10) {
-                content
+
+            Spacer()
+
+            Divider()
+
+            HStack {
+                Text("Built by")
+                Spacer()
+                Text("Pranab")
+                    .fontWeight(.medium)
             }
-            .padding(15)
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(10)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
-            )
+            .font(.caption)
+            .foregroundColor(.secondary)
         }
+        .padding(24)
+        .background(Color(nsColor: NSColor.windowBackgroundColor))
     }
 }
 

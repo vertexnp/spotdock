@@ -5,6 +5,7 @@
 
 import SwiftUI
 import Combine
+import AppKit
 
 @MainActor
 class AppViewModel: ObservableObject {
@@ -57,8 +58,11 @@ struct SpotifyApp: App {
 struct SpotifyMenuView: View {
     @ObservedObject var player = SpotifyPlayer.shared
     @Binding var miniPlayerController: MiniPlayerWindowController?
-    
-    @AppStorage("menuAppLook") private var menuAppLook = "Default"
+    @StateObject private var themeManager = ThemeManager.shared
+
+    private var menuConfiguration: ThemeConfiguration {
+        ThemeConfiguration.configuration(for: themeManager.currentTheme)
+    }
 
     var body: some View {
         VStack(spacing: 14) {
@@ -67,25 +71,43 @@ struct SpotifyMenuView: View {
                     .frame(height: 200)
             } else if !player.isAuthenticated {
                 loginView
-            } else if let error = player.error {
-                Text("Error: \(error)")
-                    .foregroundColor(.red)
-                    .font(.caption)
             } else {
-                if menuAppLook == "Retro Radio" {
-                    retroMenuView
-                } else {
-                    defaultMenuView
+                // Show player content, with error overlay if needed
+                Group {
+                    switch themeManager.currentTheme {
+                    case .classic:
+                        classicMenuView
+                    case .minimal:
+                        minimalMenuView
+                    case .fanFav:
+                        fanFavMenuView
+                    }
                 }
+                .overlay(
+                    player.error != nil ? 
+                    VStack {
+                        Text("⚠️ \(player.error!)")
+                            .foregroundColor(.white)
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.orange.opacity(0.8))
+                            .cornerRadius(8)
+                            .padding(.top, 8)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .top) : nil
+                )
             }
 
             Divider()
-                .opacity(menuAppLook == "Retro Radio" ? 0.2 : 1.0)
 
             footerView
         }
-        .background(menuAppLook == "Retro Radio" ? Color(red: 0.15, green: 0.1, blue: 0.05) : Color.clear)
-        .cornerRadius(menuAppLook == "Retro Radio" ? 12 : 0)
+        .background(themeManager.currentTheme == .classic ? Color.clear : Color.clear)
+        .cornerRadius(themeManager.currentTheme == .fanFav ? 12 : 0)
+        .onReceive(themeManager.$currentTheme) { _ in
+            // React to theme changes
+        }
     }
     
     private var loginView: some View {
@@ -111,7 +133,7 @@ struct SpotifyMenuView: View {
         .frame(height: 220)
     }
     
-    private var defaultMenuView: some View {
+    private var classicMenuView: some View {
         VStack(spacing: 14) {
             // Album Art
             AsyncImage(url: URL(string: player.albumArtURL)) { image in
@@ -151,7 +173,7 @@ struct SpotifyMenuView: View {
             // Controls
             HStack(spacing: 32) {
                 controlButton(icon: "backward.end.fill", size: 20) { await player.previousTrack() }
-                
+
                 Button(action: { Task { await player.togglePlay() } }) {
                     Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 28, weight: .bold))
@@ -166,74 +188,175 @@ struct SpotifyMenuView: View {
             }
         }
     }
-    
-    private var retroMenuView: some View {
-        VStack(spacing: 14) {
-            // Analog Look Display
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(red: 0.1, green: 0.1, blue: 0.1))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(red: 0.4, green: 0.2, blue: 0.1), lineWidth: 4)
-                    )
-                
-                VStack(spacing: 8) {
-                    Text(player.trackName.uppercased())
-                        .font(.custom("Courier-Bold", size: 18))
-                        .foregroundColor(Color(red: 0.9, green: 0.4, blue: 0.3))
-                        .lineLimit(1)
-                    
-                    Text(player.artistName.uppercased())
-                        .font(.custom("Courier", size: 14))
-                        .foregroundColor(Color(red: 0.9, green: 0.4, blue: 0.3).opacity(0.8))
-                        .lineLimit(1)
-                    
-                    // Simple Spectrum Analyzer Look
-                    HStack(alignment: .bottom, spacing: 2) {
-                        ForEach(0..<15) { i in
-                            RoundedRectangle(cornerRadius: 1)
-                                .fill(Color(red: 0.9, green: 0.4, blue: 0.3))
-                                .frame(width: 4, height: player.isPlaying ? CGFloat.random(in: 5...30) : 5)
-                                .animation(.easeInOut(duration: 0.2).repeatForever(), value: player.isPlaying)
-                        }
-                    }
-                    .frame(height: 35)
-                }
-                .padding()
+
+    private var minimalMenuView: some View {
+        VStack(spacing: 12) {
+            // Album Art - Larger and more prominent
+            AsyncImage(url: URL(string: player.albumArtURL)) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.gray.opacity(0.2))
+                    .overlay(Image(systemName: "music.note").font(.largeTitle).foregroundColor(.gray))
             }
-            .frame(height: 120)
-            
-            // Retro Progress
+            .frame(width: 260, height: 260)
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
+
+            // Track Info - Clean and centered
             VStack(spacing: 4) {
-                progressBar(color: Color(red: 0.9, green: 0.4, blue: 0.3), bgColor: Color.black)
-                
-                HStack {
-                    Text(formatTime(player.progress))
-                    Spacer()
-                    Text("SW / AM / FM")
-                    Spacer()
-                    Text(formatTime(player.duration))
-                }
-                .font(.custom("Courier", size: 10))
-                .foregroundColor(Color(red: 0.9, green: 0.4, blue: 0.3).opacity(0.6))
+                Text(player.trackName)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                Text(player.artistName)
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundColor(.white.opacity(0.6))
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .multilineTextAlignment(.center)
+
+            // Progress Bar - Minimal style
+            progressBar(color: .white, bgColor: Color.white.opacity(0.2))
+
+            HStack {
+                Text(formatTime(player.progress))
+                    .font(.caption2).foregroundColor(.white.opacity(0.6))
+                Spacer()
+                Text(formatTime(player.duration))
+                    .font(.caption2).foregroundColor(.white.opacity(0.6))
             }
 
-            // Analog Controls
-            HStack(spacing: 25) {
-                retroControlButton(icon: "backward.fill") { await player.previousTrack() }
-                
-                retroControlButton(icon: player.isPlaying ? "stop.fill" : "play.fill", size: 35) { await player.togglePlay() }
-                
-                retroControlButton(icon: "forward.fill") { await player.nextTrack() }
+            // Controls - Minimal circular buttons
+            HStack(spacing: 28) {
+                minimalControlButton(icon: "backward.fill", size: 18) { await player.previousTrack() }
+
+                Button(action: { Task { await player.togglePlay() } }) {
+                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.black)
+                        .frame(width: 48, height: 48)
+                        .background(Color.white)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+
+                minimalControlButton(icon: "forward.fill", size: 18) { await player.nextTrack() }
             }
-            .padding(.vertical, 10)
         }
         .padding()
-        .background(Color(red: 0.2, green: 0.15, blue: 0.1))
-        .cornerRadius(8)
     }
-    
+
+    private var vinylMenuRotation: Double {
+        guard player.duration > 0 else { return 0 }
+        return (player.progress / player.duration) * 360
+    }
+
+    private var fanFavMenuView: some View {
+        VStack(spacing: 12) {
+            // Vinyl record (smaller for menu bar)
+            ZStack {
+                Circle()
+                    .fill(
+                        AngularGradient(
+                            gradient: Gradient(colors: [
+                                Color(white: 0.08), Color(white: 0.15), Color(white: 0.08),
+                                Color(white: 0.12), Color(white: 0.08), Color(white: 0.14)
+                            ]),
+                            center: .center
+                        )
+                    )
+                    .frame(width: 120, height: 120)
+                
+                // Grooves
+                ForEach(0..<8) { i in
+                    Circle()
+                        .stroke(Color(white: 0.05).opacity(0.4), lineWidth: 0.5)
+                        .frame(width: CGFloat(30 + i * 11), height: CGFloat(30 + i * 11))
+                }
+                
+                // Highlight arc
+                Circle()
+                    .trim(from: 0.1, to: 0.35)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 10)
+                    .frame(width: 120, height: 120)
+                    .rotationEffect(.degrees(vinylMenuRotation))
+                
+                // Album art center
+                AsyncImage(url: URL(string: player.albumArtURL)) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    Circle().fill(Color(white: 0.15))
+                        .overlay(Image(systemName: "music.note").font(.system(size: 16)).foregroundColor(.gray))
+                }
+                .frame(width: 44, height: 44)
+                .clipShape(Circle())
+                
+                Circle().fill(Color(white: 0.05)).frame(width: 5, height: 5)
+            }
+            
+            // Track info
+            VStack(spacing: 3) {
+                Text(player.trackName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                Text(player.artistName)
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.6))
+                    .lineLimit(1)
+            }
+            
+            // Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Rectangle().fill(Color.white.opacity(0.15)).frame(height: 3).clipShape(Capsule())
+                    Rectangle().fill(Color.white.opacity(0.6))
+                        .frame(width: player.duration > 0 ? geo.size.width * CGFloat(player.progress / player.duration) : 0, height: 3)
+                        .clipShape(Capsule())
+                }
+            }
+            .frame(height: 3)
+            
+            // Controls
+            HStack(spacing: 20) {
+                Button(action: { Task { await player.previousTrack() } }) {
+                    Image(systemName: "backward.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                .buttonStyle(.plain)
+                
+                Button(action: { Task { await player.togglePlay() } }) {
+                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill(Color(white: 0.1)))
+                }
+                .buttonStyle(.plain)
+                
+                Button(action: { Task { await player.nextTrack() } }) {
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding()
+        .frame(width: 220)
+        .background(
+            LinearGradient(
+                colors: [Color(white: 0.1), Color(white: 0.06)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(16)
+    }
+
     @AppStorage("groupSecondaryActions") private var groupSecondaryActions = true
 
     private var footerView: some View {
@@ -248,7 +371,7 @@ struct SpotifyMenuView: View {
                 }) {
                     Image(systemName: "pip.fill")
                         .font(.system(size: 14))
-                        .foregroundColor(miniPlayerController?.window?.isVisible == true ? .green : .secondary)
+                        .foregroundColor(menuConfiguration.menuAccentColor.opacity(miniPlayerController?.window?.isVisible == true ? 1.0 : 0.7))
                 }
                 .buttonStyle(.plain)
                 .help("Toggle Mini Player")
@@ -256,14 +379,14 @@ struct SpotifyMenuView: View {
                 Button(action: { Task { await player.refreshPlayerData() } }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 14))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(menuConfiguration.menuTextColor.opacity(0.7))
                 }
                 .buttonStyle(.plain)
                 .help("Refresh")
             }
-            .padding(groupSecondaryActions ? 8 : 0)
-            .background(groupSecondaryActions ? Color.white.opacity(0.05) : Color.clear)
-            .cornerRadius(groupSecondaryActions ? 8 : 0)
+            .padding(groupSecondaryActions && themeManager.currentTheme == .classic ? 8 : 0)
+            .background(groupSecondaryActions && themeManager.currentTheme == .classic ? menuConfiguration.menuTextColor.opacity(0.08) : Color.clear)
+            .cornerRadius(groupSecondaryActions && themeManager.currentTheme == .classic ? 8 : 0)
 
             Spacer()
 
@@ -273,7 +396,7 @@ struct SpotifyMenuView: View {
                     SettingsLink {
                         Image(systemName: "gearshape")
                             .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(menuConfiguration.menuTextColor.opacity(0.7))
                     }
                     .buttonStyle(.plain)
                     .help("Settings")
@@ -283,7 +406,7 @@ struct SpotifyMenuView: View {
                     }) {
                         Image(systemName: "gearshape")
                             .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(menuConfiguration.menuTextColor.opacity(0.7))
                     }
                     .buttonStyle(.plain)
                     .help("Settings")
@@ -294,7 +417,7 @@ struct SpotifyMenuView: View {
                 }) {
                     Image(systemName: "rectangle.portrait.and.arrow.right")
                         .font(.system(size: 14))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(menuConfiguration.menuTextColor.opacity(0.7))
                 }
                 .buttonStyle(.plain)
                 .help("Logout")
@@ -304,14 +427,14 @@ struct SpotifyMenuView: View {
                 }) {
                     Image(systemName: "power")
                         .font(.system(size: 14))
-                        .foregroundColor(.red)
+                        .foregroundColor(.red.opacity(0.8))
                 }
                 .buttonStyle(.plain)
                 .help("Quit")
             }
-            .padding(groupSecondaryActions ? 8 : 0)
-            .background(groupSecondaryActions ? Color.white.opacity(0.05) : Color.clear)
-            .cornerRadius(groupSecondaryActions ? 8 : 0)
+            .padding(groupSecondaryActions && themeManager.currentTheme == .classic ? 8 : 0)
+            .background(groupSecondaryActions && themeManager.currentTheme == .classic ? menuConfiguration.menuTextColor.opacity(0.08) : Color.clear)
+            .cornerRadius(groupSecondaryActions && themeManager.currentTheme == .classic ? 8 : 0)
         }
     }
     
@@ -346,11 +469,23 @@ struct SpotifyMenuView: View {
                     .fill(LinearGradient(colors: [Color(white: 0.3), Color(white: 0.1)], startPoint: .top, endPoint: .bottom))
                     .frame(width: size + 15, height: size + 15)
                     .shadow(radius: 2)
-                
+
                 Image(systemName: icon)
                     .font(.system(size: size * 0.5, weight: .black))
                     .foregroundColor(Color(red: 0.9, green: 0.4, blue: 0.3))
             }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func minimalControlButton(icon: String, size: CGFloat, action: @escaping () async -> Void) -> some View {
+        Button(action: { Task { await action() } }) {
+            Image(systemName: icon)
+                .font(.system(size: size, weight: .medium))
+                .foregroundColor(.white.opacity(0.7))
+                .frame(width: 36, height: 36)
+                .background(Color.white.opacity(0.1))
+                .clipShape(Circle())
         }
         .buttonStyle(.plain)
     }

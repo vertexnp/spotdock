@@ -16,6 +16,7 @@
 		B10000012F8780AB00000001 /* VisualEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000022F8780AB00000002 /* VisualEffectView.swift */; };
 		B10000032F8780AB00000003 /* MiniPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000042F8780AB00000004 /* MiniPlayerView.swift */; };
 		B10000052F8780AB00000005 /* MiniPlayerWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000062F8780AB00000006 /* MiniPlayerWindow.swift */; };
+		D10000012F8780AB00000001 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000022F8780AB00000002 /* ThemeManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -38,6 +39,7 @@
 		B10000022F8780AB00000002 /* VisualEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectView.swift; sourceTree = "<group>"; };
 		B10000042F8780AB00000004 /* MiniPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerView.swift; sourceTree = "<group>"; };
 		B10000062F8780AB00000006 /* MiniPlayerWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerWindow.swift; sourceTree = "<group>"; };
+		D10000022F8780AB00000002 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,6 +72,7 @@
 				B10000022F8780AB00000002 /* VisualEffectView.swift */,
 				B10000042F8780AB00000004 /* MiniPlayerView.swift */,
 				B10000062F8780AB00000006 /* MiniPlayerWindow.swift */,
+				D10000022F8780AB00000002 /* ThemeManager.swift */,
 				A10000062F8780AB00000006 /* Assets.xcassets */,
 				A10000082F8780AB00000008 /* Info.plist */,
 				A10000092F8780AB00000009 /* Spotify.entitlements */,
@@ -162,6 +165,7 @@
 				B10000012F8780AB00000001 /* VisualEffectView.swift in Sources */,
 				B10000032F8780AB00000003 /* MiniPlayerView.swift in Sources */,
 				B10000052F8780AB00000005 /* MiniPlayerWindow.swift in Sources */,
+				D10000012F8780AB00000001 /* ThemeManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

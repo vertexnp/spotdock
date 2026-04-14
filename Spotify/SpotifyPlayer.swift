@@ -24,6 +24,8 @@ class SpotifyPlayer: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var isAuthenticated: Bool = false
     @Published var error: String? = nil
+    @Published var isRateLimited: Bool = false
+    @Published var showLyrics: Bool = false
     @Published var syncedLyrics: [LyricLine] = []
     @Published var lyrics: String = ""
     @Published var deviceName: String = ""
@@ -50,7 +52,12 @@ class SpotifyPlayer: ObservableObject {
             .autoconnect()
             .sink { [weak self] _ in
                 Task {
-                    await self?.refreshPlayerData()
+                    if self?.isRateLimited == true {
+                        // When rate limited, use local data instead of API
+                        await self?.fetchLocalSpotifyData()
+                    } else {
+                        await self?.refreshPlayerData()
+                    }
                 }
             }
     }
@@ -133,23 +140,36 @@ class SpotifyPlayer: ObservableObject {
 
     func refreshPlayerData() async {
         guard isAuthenticated else { return }
-        
+
         if accessToken == nil {
             await refreshAccessToken()
         }
-        
+
         guard let token = accessToken else { return }
-        
+
         var request = URLRequest(url: URL(string: "https://api.spotify.com/v1/me/player")!)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
+
         do {
+            print("🌐 [API] Fetching player data...")
             let (data, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse {
+                print("🌐 [API] Response status: \(httpResponse.statusCode)")
+                
                 if httpResponse.statusCode == 200 {
+                    // Clear any previous errors on successful response
+                    self.error = nil
+                    self.isRateLimited = false
                     let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+                    if let track = json?["item"] as? [String: Any], let name = track["name"] as? String {
+                        print("🌐 [API] Now playing: \(name)")
+                    }
                     updatePlaybackState(json)
                 } else if httpResponse.statusCode == 204 {
+                    // Clear any previous errors on successful response
+                    self.error = nil
+                    self.isRateLimited = false
+                    print("🌐 [API] Nothing playing")
                     self.trackName = "Nothing Playing"
                     self.artistName = ""
                     self.albumArtURL = ""
@@ -157,11 +177,19 @@ class SpotifyPlayer: ObservableObject {
                     self.currentTrackID = ""
                     self.syncedLyrics = []
                     self.lyrics = ""
+                } else if httpResponse.statusCode == 429 {
+                    // Rate limit exceeded - fallback to local Spotify app
+                    print("🌐 [API] ⚠️ Rate limit reached (429)")
+                    self.isRateLimited = true
+                    self.error = "API rate limit reached. Using local data."
+                    await fetchLocalSpotifyData()
                 } else if httpResponse.statusCode == 401 {
+                    print("🌐 [API] Unauthorized (401) - refreshing token")
                     await refreshAccessToken()
                 }
             }
         } catch {
+            print("🌐 [API] Error: \(error.localizedDescription)")
             self.error = error.localizedDescription
         }
     }
@@ -206,13 +234,13 @@ class SpotifyPlayer: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: URLRequest(url: url))
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
                 let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                
+
                 if let syncedLrc = json?["syncedLyrics"] as? String {
                     self.syncedLyrics = parseLRC(syncedLrc)
                 } else {
                     self.syncedLyrics = []
                 }
-                
+
                 self.lyrics = json?["plainLyrics"] as? String ?? ""
             } else {
                 self.lyrics = ""
@@ -221,6 +249,82 @@ class SpotifyPlayer: ObservableObject {
         } catch {
             self.lyrics = ""
             self.syncedLyrics = []
+        }
+    }
+
+    private func fetchLocalSpotifyData() async {
+        guard NSRunningApplication.runningApplications(withBundleIdentifier: "com.spotify.client").first != nil else {
+            self.error = "Spotify app not running. Cannot fetch local data."
+            return
+        }
+
+        let script = """
+        tell application "Spotify"
+            set tName to name of current track
+            set tArtist to artist of current track
+            set tDuration to duration of current track
+            set tPosition to player position
+            set pState to player state
+            return tName & "|" & tArtist & "|" & tDuration & "|" & tPosition & "|" & pState
+        end tell
+        """
+
+        print("🎵 [LocalSpotify] Running AppleScript: \(script)")
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+        
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+        
+        do {
+            try process.run()
+            process.waitUntilExit()
+            
+            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+            
+            let output = String(data: outputData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let errorOutput = String(data: errorData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            
+            print("🎵 [LocalSpotify] Termination status: \(process.terminationStatus)")
+            print("🎵 [LocalSpotify] Output: \(output)")
+            if !errorOutput.isEmpty {
+                print("🎵 [LocalSpotify] Error output: \(errorOutput)")
+            }
+            
+            if !output.isEmpty, process.terminationStatus == 0 {
+                let components = output.components(separatedBy: "|")
+                print("🎵 [LocalSpotify] Parsed components: \(components)")
+                
+                if components.count >= 4 {
+                    self.trackName = components[0]
+                    self.artistName = components[1]
+                    self.albumArtURL = ""
+                    self.duration = (Double(components[2]) ?? 0) / 1000.0
+                    self.progress = (Double(components[3]) ?? 0) / 1000.0
+                    if components.count == 5 {
+                        self.isPlaying = components[4].lowercased() == "playing"
+                    }
+                    self.currentTrackID = "local_\(components[0])_\(components[1])"
+                    self.error = nil
+                    print("🎵 [LocalSpotify] Successfully updated: \(self.trackName) by \(self.artistName)")
+                } else {
+                    self.error = "Invalid data format from local Spotify"
+                    print("🎵 [LocalSpotify] Error: Expected >= 4 components, got \(components.count)")
+                }
+            } else {
+                self.error = "Failed to get local Spotify data (exit code: \(process.terminationStatus))"
+                if !errorOutput.isEmpty {
+                    self.error = "Failed to get local Spotify data: \(errorOutput)"
+                }
+            }
+        } catch {
+            self.error = "Failed to get local Spotify data: \(error.localizedDescription)"
+            print("🎵 [LocalSpotify] Exception: \(error.localizedDescription)")
         }
     }
 
