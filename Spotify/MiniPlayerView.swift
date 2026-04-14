@@ -13,6 +13,7 @@ enum ViewMode {
 struct MiniPlayerView: View {
     @ObservedObject var player = SpotifyPlayer.shared
     @State private var localVolume: Double = 50
+    @State private var rotationAngle: Double = 0
 
     private let themeManager = ThemeManager.shared
 
@@ -77,7 +78,8 @@ struct MiniPlayerView: View {
         Group {
             if themeManager.currentTheme == .fanFav {
                 fanFavPlayerModeView
-                    .padding(35)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 20)
             } else if themeManager.currentTheme == .minimal {
                 minimalPlayerModeView
             } else {
@@ -201,49 +203,74 @@ struct MiniPlayerView: View {
         .padding(24)
     }
 
-    // Vinyl rotation angle based on playback progress
-    private var vinylRotation: Double {
-        guard player.duration > 0 else { return 0 }
-        return (player.progress / player.duration) * 360
-    }
-
     // Tone arm angle: rest position when paused, moves over record when playing
     private var toneArmAngle: Double {
-        player.isPlaying ? 18 : -8
+        player.isPlaying ? 155 : 110
     }
 
     private var fanFavPlayerModeView: some View {
         VStack(spacing: 0) {
-            // Row 1: Timer | Vinyl | Lyrics toggle
-            topRow
-
-            Spacer()
-
-            // Row 2: Controls (centered)
-            HStack {
-                Spacer()
-                controlsButtons
-                Spacer()
-            }
-            .padding(.bottom, 16)
-
-            // Row 3: Song name + Artist (centered)
-            HStack {
-                Spacer()
-                VStack(spacing: 4) {
-                    Text(player.trackName)
-                        .font(.system(size: 14, weight: .semibold))
+            // Top Row: Vinyl with Timer and Toggle at the bottom corners
+            HStack(alignment: .bottom, spacing: 0) {
+                // Timer (left)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(formatTime(player.progress))
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.white)
-                        .lineLimit(1)
-
-                    Text(player.artistName)
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundColor(.white.opacity(0.5))
-                        .lineLimit(1)
+                        .monospacedDigit()
+                    Text("-" + formatTime(max(0, player.duration - player.progress)))
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(.white.opacity(0.4))
+                        .monospacedDigit()
                 }
+                .frame(width: 60, alignment: .leading)
+                .padding(.bottom, 12)
+                
                 Spacer()
+                
+                // Vinyl Record (center)
+                vinylRecordSection
+                
+                Spacer()
+                
+                // Lyrics toggle (right)
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        player.showLyrics.toggle()
+                    }
+                }) {
+                    Image(systemName: "music.note")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                        .frame(width: 36, height: 36)
+                        .background(Circle().fill(Color.white.opacity(0.08)))
+                }
+                .buttonStyle(.plain)
+                .frame(width: 60, alignment: .trailing)
+                .padding(.bottom, 8)
             }
-            .padding(.bottom, 12)
+            .frame(height: 140)
+            .padding(.horizontal, 10)
+            
+            Spacer(minLength: 12)
+
+            // Playback controls (centered)
+            controlsButtons
+                .padding(.bottom, 16)
+
+            // Track Information (centered)
+            VStack(spacing: 4) {
+                Text(player.trackName)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+
+                Text(player.artistName)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white.opacity(0.5))
+                    .lineLimit(1)
+            }
+            .padding(.bottom, 8)
         }
         .contentShape(Rectangle())
         .onTapGesture {
@@ -253,52 +280,22 @@ struct MiniPlayerView: View {
         }
     }
 
-    private var topRow: some View {
-        HStack(spacing: 0) {
-            // Timer (left)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(formatTime(player.progress))
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.white)
-                    .monospacedDigit()
-                Text("-" + formatTime(max(0, player.duration - player.progress)))
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(.white.opacity(0.4))
-                    .monospacedDigit()
-            }
-            .frame(width: 44, alignment: .leading)
-
-            Spacer()
-
-            // Vinyl (center)
-            vinylRecordSection
-
-            Spacer()
-
-            // Lyrics toggle (right)
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    player.showLyrics.toggle()
-                }
-            }) {
-                Image(systemName: "music.note")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.6))
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(Color(white: 0.08)))
-            }
-            .buttonStyle(.plain)
-            .frame(width: 44, alignment: .trailing)
-        }
-        .padding(.horizontal, 20)
-    }
-
     private var vinylRecordSection: some View {
-        ZStack {
-            vinylDisc
-            toneArmView
+        TimelineView(.animation(minimumInterval: 0.05)) { context in
+            ZStack {
+                vinylDisc
+                toneArmView
+            }
+            .frame(width: 135, height: 135)
+            .onChange(of: context.date) { _, _ in
+                if player.isPlaying {
+                    rotationAngle += 1.5 // Speed of rotation
+                    if rotationAngle >= 360 {
+                        rotationAngle -= 360
+                    }
+                }
+            }
         }
-        .frame(width: 100, height: 100)
     }
 
     private var vinylDisc: some View {
@@ -308,51 +305,44 @@ struct MiniPlayerView: View {
             vinylHighlight
             vinylCenter
         }
-        .rotationEffect(.degrees(vinylRotation))
+        .rotationEffect(.degrees(rotationAngle))
     }
 
     private var vinylBase: some View {
         Circle()
-            .fill(Color(white: 0.06))
-            .frame(width: 140, height: 140)
-            .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
+            .fill(
+                RadialGradient(
+                    gradient: Gradient(colors: [Color(white: 0.12), Color(white: 0.05)]),
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: 67.5
+                )
+            )
+            .frame(width: 135, height: 135)
+            .shadow(color: .black.opacity(0.4), radius: 8, y: 3)
     }
 
     private var vinylGrooves: some View {
         Group {
-            groove(at: 0)
-            groove(at: 1)
-            groove(at: 2)
-            groove(at: 3)
-            groove(at: 4)
-            groove(at: 5)
-            groove(at: 6)
-            groove(at: 7)
-            groove(at: 8)
-            groove(at: 9)
-            groove(at: 10)
-            groove(at: 11)
+            ForEach(0..<12) { i in
+                Circle()
+                    .stroke(Color.black.opacity(0.15), lineWidth: 0.5)
+                    .frame(width: CGFloat(55 + i * 6), height: CGFloat(55 + i * 6))
+            }
         }
-    }
-
-    private func groove(at index: Int) -> some View {
-        let size = CGFloat(40 + index) * 7.5
-        return Circle()
-            .stroke(Color(white: 0.03).opacity(0.3), lineWidth: 0.5)
-            .frame(width: size, height: size)
     }
 
     private var vinylHighlight: some View {
         Circle()
             .trim(from: 0.08, to: 0.28)
             .stroke(Color.white.opacity(0.04), lineWidth: 12)
-            .frame(width: 140, height: 140)
+            .frame(width: 135, height: 135)
     }
 
     private var vinylCenter: some View {
         ZStack {
             Circle()
-                .fill(Color(white: 0.08))
+                .fill(Color(white: 0.1))
                 .frame(width: 52, height: 52)
 
             albumArtCircle
@@ -368,7 +358,7 @@ struct MiniPlayerView: View {
             image.resizable().scaledToFill()
         } placeholder: {
             Circle()
-                .fill(Color(white: 0.1))
+                .fill(Color(white: 0.15))
                 .overlay(Image(systemName: "music.note").font(.system(size: 14)).foregroundColor(.gray.opacity(0.3)))
         }
         .frame(width: 46, height: 46)
@@ -376,9 +366,9 @@ struct MiniPlayerView: View {
     }
 
     private var controlsButtons: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             controlButton(icon: "backward.fill", size: 13) { await player.previousTrack() }
-            controlButton(icon: player.isPlaying ? "pause.fill" : "play.fill", size: 16) { await player.togglePlay() }
+            controlButton(icon: player.isPlaying ? "pause.fill" : "play.fill", size: 18) { await player.togglePlay() }
             controlButton(icon: "forward.fill", size: 13) { await player.nextTrack() }
         }
     }
@@ -387,47 +377,48 @@ struct MiniPlayerView: View {
         Button(action: { Task { await action() } }) {
             Image(systemName: icon)
                 .font(.system(size: size, weight: .medium))
-                .foregroundColor(.white.opacity(0.7))
-                .frame(width: 32, height: 32)
-                .background(Circle().fill(Color(white: 0.1)))
+                .foregroundColor(.white.opacity(0.8))
+                .frame(width: 36, height: 36)
+                .background(Circle().fill(Color.white.opacity(0.08)))
         }
         .buttonStyle(.plain)
     }
 
     // Tone arm component
     private var toneArmView: some View {
-        Group {
+        ZStack {
             // Pivot base (top right)
             Circle()
-                .fill(Color(white: 0.1))
+                .fill(Color(white: 0.15))
                 .frame(width: 10, height: 10)
-                .offset(x: 52, y: -58)
+                .position(x: 125, y: 10)
             
             // Arm shaft
             Path { path in
-                let pivotX: CGFloat = 52
-                let pivotY: CGFloat = -58
-                let armLength: CGFloat = 70
+                let pivotX: CGFloat = 125
+                let pivotY: CGFloat = 10
+                let armLength: CGFloat = 85
                 let angle = toneArmAngle
                 
-                let endX = pivotX + armLength * cos(angle * .pi / 180)
-                let endY = pivotY + armLength * sin(angle * .pi / 180)
+                let rad = angle * .pi / 180
+                let endX = pivotX + armLength * cos(rad)
+                let endY = pivotY + armLength * sin(rad)
                 
                 path.move(to: CGPoint(x: pivotX, y: pivotY))
                 path.addLine(to: CGPoint(x: endX, y: endY))
             }
-            .stroke(Color(white: 0.14), lineWidth: 3)
-            .shadow(color: .black.opacity(0.4), radius: 2, x: 1, y: 1)
+            .stroke(Color(white: 0.2), lineWidth: 3)
+            .shadow(color: .black.opacity(0.3), radius: 2, x: 1, y: 1)
             
             // Headshell
             let angle = toneArmAngle
-            let armLength: CGFloat = 70
-            let headX: CGFloat = 52 + armLength * cos(angle * .pi / 180)
-            let headY: CGFloat = -58 + armLength * sin(angle * .pi / 180)
+            let armLength: CGFloat = 85
+            let headX: CGFloat = 125 + armLength * cos(angle * .pi / 180)
+            let headY: CGFloat = 10 + armLength * sin(angle * .pi / 180)
             
             Rectangle()
-                .fill(Color(white: 0.1))
-                .frame(width: 6, height: 4)
+                .fill(Color(white: 0.15))
+                .frame(width: 8, height: 5)
                 .position(x: headX, y: headY)
                 .cornerRadius(1)
         }

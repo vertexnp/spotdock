@@ -29,6 +29,8 @@ class SpotifyPlayer: ObservableObject {
     @Published var syncedLyrics: [LyricLine] = []
     @Published var lyrics: String = ""
     @Published var deviceName: String = ""
+    @Published var isShuffled: Bool = false
+    @Published var repeatMode: String = "off" // off, track, context
 
     private var currentTrackID: String = ""
     private var pollingTimer: AnyCancellable?
@@ -52,19 +54,16 @@ class SpotifyPlayer: ObservableObject {
             .autoconnect()
             .sink { [weak self] _ in
                 Task {
-                    if self?.isRateLimited == true {
-                        // When rate limited, use local data instead of API
-                        await self?.fetchLocalSpotifyData()
-                    } else {
-                        await self?.refreshPlayerData()
-                    }
+                    guard let self = self else { return }
+                    // Always try API unless rate limited. The rate limiting logic is handled in refreshPlayerData.
+                    await self.refreshPlayerData()
                 }
             }
     }
 
     func login() {
         let scopes = "user-read-playback-state user-modify-playback-state user-read-currently-playing"
-        let redirectURI = "spotifywidget://callback"
+        let redirectURI = "playerwidget://callback"
         
         var components = URLComponents(string: "https://accounts.spotify.com/authorize")!
         components.queryItems = [
@@ -178,11 +177,10 @@ class SpotifyPlayer: ObservableObject {
                     self.syncedLyrics = []
                     self.lyrics = ""
                 } else if httpResponse.statusCode == 429 {
-                    // Rate limit exceeded - fallback to local Spotify app
+                    // Rate limit exceeded - show specific error
                     print("🌐 [API] ⚠️ Rate limit reached (429)")
                     self.isRateLimited = true
-                    self.error = "API rate limit reached. Using local data."
-                    await fetchLocalSpotifyData()
+                    self.error = "[Sorry you will have to wait ...]"
                 } else if httpResponse.statusCode == 401 {
                     print("🌐 [API] Unauthorized (401) - refreshing token")
                     await refreshAccessToken()
@@ -212,7 +210,9 @@ class SpotifyPlayer: ObservableObject {
         
         self.progress = (json["progress_ms"] as? Double ?? 0) / 1000.0
         self.isPlaying = json["is_playing"] as? Bool ?? false
-        
+        self.isShuffled = json["shuffle_state"] as? Bool ?? false
+        self.repeatMode = json["repeat_state"] as? String ?? "off"
+
         if let device = json["device"] as? [String: Any] {
             self.volume = device["volume_percent"] as? Int ?? 50
             self.deviceName = device["name"] as? String ?? ""
@@ -249,82 +249,6 @@ class SpotifyPlayer: ObservableObject {
         } catch {
             self.lyrics = ""
             self.syncedLyrics = []
-        }
-    }
-
-    private func fetchLocalSpotifyData() async {
-        guard NSRunningApplication.runningApplications(withBundleIdentifier: "com.spotify.client").first != nil else {
-            self.error = "Spotify app not running. Cannot fetch local data."
-            return
-        }
-
-        let script = """
-        tell application "Spotify"
-            set tName to name of current track
-            set tArtist to artist of current track
-            set tDuration to duration of current track
-            set tPosition to player position
-            set pState to player state
-            return tName & "|" & tArtist & "|" & tDuration & "|" & tPosition & "|" & pState
-        end tell
-        """
-
-        print("🎵 [LocalSpotify] Running AppleScript: \(script)")
-        
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-e", script]
-        
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
-        
-        do {
-            try process.run()
-            process.waitUntilExit()
-            
-            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            
-            let output = String(data: outputData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let errorOutput = String(data: errorData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            
-            print("🎵 [LocalSpotify] Termination status: \(process.terminationStatus)")
-            print("🎵 [LocalSpotify] Output: \(output)")
-            if !errorOutput.isEmpty {
-                print("🎵 [LocalSpotify] Error output: \(errorOutput)")
-            }
-            
-            if !output.isEmpty, process.terminationStatus == 0 {
-                let components = output.components(separatedBy: "|")
-                print("🎵 [LocalSpotify] Parsed components: \(components)")
-                
-                if components.count >= 4 {
-                    self.trackName = components[0]
-                    self.artistName = components[1]
-                    self.albumArtURL = ""
-                    self.duration = (Double(components[2]) ?? 0) / 1000.0
-                    self.progress = (Double(components[3]) ?? 0) / 1000.0
-                    if components.count == 5 {
-                        self.isPlaying = components[4].lowercased() == "playing"
-                    }
-                    self.currentTrackID = "local_\(components[0])_\(components[1])"
-                    self.error = nil
-                    print("🎵 [LocalSpotify] Successfully updated: \(self.trackName) by \(self.artistName)")
-                } else {
-                    self.error = "Invalid data format from local Spotify"
-                    print("🎵 [LocalSpotify] Error: Expected >= 4 components, got \(components.count)")
-                }
-            } else {
-                self.error = "Failed to get local Spotify data (exit code: \(process.terminationStatus))"
-                if !errorOutput.isEmpty {
-                    self.error = "Failed to get local Spotify data: \(errorOutput)"
-                }
-            }
-        } catch {
-            self.error = "Failed to get local Spotify data: \(error.localizedDescription)"
-            print("🎵 [LocalSpotify] Exception: \(error.localizedDescription)")
         }
     }
 
@@ -406,6 +330,31 @@ class SpotifyPlayer: ObservableObject {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         _ = try? await URLSession.shared.data(for: request)
         self.volume = volume
+    }
+
+    func toggleShuffle() async {
+        guard let token = accessToken else { return }
+        let newState = !isShuffled
+        var request = URLRequest(url: URL(string: "https://api.spotify.com/v1/me/player/shuffle?state=\(newState)")!)
+        request.httpMethod = "PUT"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        _ = try? await URLSession.shared.data(for: request)
+        self.isShuffled = newState
+    }
+
+    func cycleRepeat() async {
+        guard let token = accessToken else { return }
+        let nextMode: String
+        switch repeatMode {
+        case "off": nextMode = "context"
+        case "context": nextMode = "track"
+        default: nextMode = "off"
+        }
+        var request = URLRequest(url: URL(string: "https://api.spotify.com/v1/me/player/repeat?state=\(nextMode)")!)
+        request.httpMethod = "PUT"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        _ = try? await URLSession.shared.data(for: request)
+        self.repeatMode = nextMode
     }
 }
 

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @State private var selection: String? = "General"
+    @Binding var miniPlayerController: MiniPlayerWindowController?
 
     let categories = [
         ("General", "gearshape"),
@@ -11,7 +12,7 @@ struct SettingsView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            GeneralSettingsView()
+            GeneralSettingsView(miniPlayerController: $miniPlayerController)
                 .tabItem {
                     Label("General", systemImage: "gearshape")
                 }
@@ -36,78 +37,124 @@ struct SettingsView: View {
 struct GeneralSettingsView: View {
     @AppStorage("launchAtLogin") private var launchAtLogin = false
     @AppStorage("showLyricsByDefault") private var showLyricsByDefault = false
+    @StateObject private var player = SpotifyPlayer.shared
+    @Binding var miniPlayerController: MiniPlayerWindowController?
+    
+    private func toggleMiniPlayer() {
+        if miniPlayerController == nil {
+            miniPlayerController = MiniPlayerWindowController()
+            miniPlayerController?.showWindow(nil)
+        } else {
+            miniPlayerController?.toggle()
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 24) {
-                // Launch at Login
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("Launch at Login")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Spacer()
-                        Toggle("", isOn: $launchAtLogin)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                    }
-                    Text("Automatically start when you log in")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color(nsColor: NSColor.controlBackgroundColor))
-                .cornerRadius(10)
-
-                // Show Lyrics by Default
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("Show Lyrics by Default")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Spacer()
-                        Toggle("", isOn: $showLyricsByDefault)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                    }
-                    Text("Open lyrics view when mini player launches")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color(nsColor: NSColor.controlBackgroundColor))
-                .cornerRadius(10)
-
-                Spacer()
-
-                // Logout
-                VStack(alignment: .leading, spacing: 8) {
-                    Divider()
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Spotify Account")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(SpotifyPlayer.shared.isAuthenticated ? "Connected" : "Not connected")
-                                .font(.subheadline)
-                                .foregroundColor(SpotifyPlayer.shared.isAuthenticated ? .green : .secondary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Mini Player Toggle
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("Mini Player")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Spacer()
+                            Button(action: toggleMiniPlayer) {
+                                Image(systemName: "pip.fill")
+                                    .font(.system(size: 14))
+                            }
+                            .buttonStyle(.bordered)
+                            .help("Toggle Mini Player")
                         }
-                        Spacer()
-                        if SpotifyPlayer.shared.isAuthenticated {
-                            Button("Logout") {
-                                SpotifyPlayer.shared.logout()
+                        Text("Show or hide the floating mini player")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color(nsColor: NSColor.controlBackgroundColor))
+                    .cornerRadius(10)
+
+                    Divider()
+
+                    // Launch at Login
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("Launch at Login")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Spacer()
+                            Toggle("", isOn: $launchAtLogin)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                        }
+                        Text("Automatically start when you log in")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color(nsColor: NSColor.controlBackgroundColor))
+                    .cornerRadius(10)
+
+                    // Show Lyrics by Default
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("Show Lyrics by Default")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Spacer()
+                            Toggle("", isOn: $showLyricsByDefault)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                        }
+                        Text("Open lyrics view when mini player launches")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color(nsColor: NSColor.controlBackgroundColor))
+                    .cornerRadius(10)
+
+                    // Account & Actions
+                    VStack(alignment: .leading, spacing: 12) {
+                        Divider()
+                        
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Spotify Account")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text(player.isAuthenticated ? "Connected" : "Not connected")
+                                    .font(.subheadline)
+                                    .foregroundColor(player.isAuthenticated ? .green : .secondary)
+                            }
+                            Spacer()
+                            if player.isAuthenticated {
+                                Button("Logout") {
+                                    player.logout()
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.red.opacity(0.8))
+                            }
+                        }
+                        
+                        HStack {
+                            Spacer()
+                            Button("Quit Spotify Widget") {
+                                NSApplication.shared.terminate(nil)
                             }
                             .buttonStyle(.bordered)
                             .tint(.red.opacity(0.8))
                         }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(20)
             }
-            .padding(20)
         }
         .background(Color(nsColor: NSColor.windowBackgroundColor))
     }
@@ -278,5 +325,5 @@ struct AboutSettingsView: View {
 }
 
 #Preview {
-    SettingsView()
+    SettingsView(miniPlayerController: .constant(nil))
 }
