@@ -20,10 +20,10 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>playerwidget-auth</string>
+			<string>spotifywidget-auth</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>playerwidget</string>
+				<string>spotifywidget</string>
 			</array>
 		</dict>
 	</array>

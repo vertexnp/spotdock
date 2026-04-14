@@ -10,6 +10,13 @@ struct LyricLine: Identifiable, Codable {
     let text: String
 }
 
+struct SpotifyTrack: Identifiable, Codable {
+    let id: String
+    let name: String
+    let artistName: String
+    let albumArtURL: String
+}
+
 @MainActor
 class SpotifyPlayer: ObservableObject {
     static let shared = SpotifyPlayer()
@@ -31,6 +38,7 @@ class SpotifyPlayer: ObservableObject {
     @Published var deviceName: String = ""
     @Published var isShuffled: Bool = false
     @Published var repeatMode: String = "off" // off, track, context
+    @Published var recommendations: [SpotifyTrack] = []
 
     private var currentTrackID: String = ""
     private var pollingTimer: AnyCancellable?
@@ -63,7 +71,7 @@ class SpotifyPlayer: ObservableObject {
 
     func login() {
         let scopes = "user-read-playback-state user-modify-playback-state user-read-currently-playing"
-        let redirectURI = "playerwidget://callback"
+        let redirectURI = "spotifywidget://callback"
         
         var components = URLComponents(string: "https://accounts.spotify.com/authorize")!
         components.queryItems = [
@@ -355,6 +363,35 @@ class SpotifyPlayer: ObservableObject {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         _ = try? await URLSession.shared.data(for: request)
         self.repeatMode = nextMode
+    }
+
+    func fetchRecentlyPlayed() async {
+        guard let token = accessToken else { return }
+
+        var request = URLRequest(url: URL(string: "https://api.spotify.com/v1/me/player/recently-played?limit=5")!)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let items = json["items"] as? [[String: Any]] {
+                self.recommendations = items.compactMap { item -> SpotifyTrack? in
+                    guard let track = item["track"] as? [String: Any],
+                          let id = track["id"] as? String,
+                          let name = track["name"] as? String,
+                          let artists = track["artists"] as? [[String: Any]],
+                          let artistName = artists.first?["name"] as? String,
+                          let album = track["album"] as? [String: Any],
+                          let images = album["images"] as? [[String: Any]],
+                          let imageUrl = images.first?["url"] as? String else {
+                        return nil
+                    }
+                    return SpotifyTrack(id: id, name: name, artistName: artistName, albumArtURL: imageUrl)
+                }
+            }
+        } catch {
+            print("Failed to fetch recently played: \(error.localizedDescription)")
+        }
     }
 }
 
