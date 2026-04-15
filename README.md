@@ -1,6 +1,10 @@
-<p align="center">
-  <img src="assets/logo.png" width="128" height="128" alt="SpotDock Logo" style="background-color: white; border-radius: 25px; padding: 10px;">
-</p>
+<table align="center">
+  <tr>
+    <td style="background-color: white; padding: 10px; border-radius: 12px;">
+      <img src="assets/logo.png" width="128" height="128" alt="SpotDock Logo">
+    </td>
+  </tr>
+</table>
 
 # SpotDock
 
