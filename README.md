@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" width="128" height="128" alt="SpotDock Logo">
+  <img src="assets/logo.png" width="128" height="128" alt="SpotDock Logo" style="background-color: white; border-radius: 25px; padding: 10px;">
 </p>
 
 # SpotDock
@@ -24,25 +24,66 @@ SpotDock is a lightweight macOS menu bar application that provides a beautiful a
 
 ## API Integration
 
-SpotDock interacts with the following Spotify and external API endpoints:
+SpotDock interacts with the following Spotify and external API endpoints. Below is a breakdown of what to expect from each request.
 
 ### Spotify Accounts API
-- `POST https://accounts.spotify.com/api/token`: Used for exchanging authorization codes for access tokens and refreshing expired tokens.
-- `GET https://accounts.spotify.com/authorize`: Initiates the user authentication and authorization flow.
+
+- **POST https://accounts.spotify.com/api/token**
+  - Use: Exchanging authorization codes or refreshing tokens.
+  - Expect: A JSON object containing `access_token`, `token_type`, `expires_in`, and optionally `refresh_token`.
+
+- **GET https://accounts.spotify.com/authorize**
+  - Use: User authentication.
+  - Expect: A redirect to the specified callback URI with a `code` parameter.
 
 ### Spotify Player API
-- `GET https://api.spotify.com/v1/me/player`: Fetches the current playback state including track details, progress, and device information.
-- `PUT https://api.spotify.com/v1/me/player/play`: Starts or resumes playback.
-- `PUT https://api.spotify.com/v1/me/player/pause`: Pauses playback.
-- `POST https://api.spotify.com/v1/me/player/next`: Skips to the next track.
-- `POST https://api.spotify.com/v1/me/player/previous`: Skips to the previous track.
-- `PUT https://api.spotify.com/v1/me/player/volume`: Adjusts the playback volume.
-- `PUT https://api.spotify.com/v1/me/player/shuffle`: Toggles shuffle mode.
-- `PUT https://api.spotify.com/v1/me/player/repeat`: Cycles through repeat modes (off, track, context).
-- `GET https://api.spotify.com/v1/me/player/recently-played`: Retrieves the user's recently played tracks.
+
+- **GET https://api.spotify.com/v1/me/player**
+  - Use: Fetching current playback state.
+  - Expect: 
+    - `item`: Object containing track `id`, `name`, `artists` array, `album` (with `images`), and `duration_ms`.
+    - `progress_ms`: Current playback position.
+    - `is_playing`: Boolean status of playback.
+    - `shuffle_state` and `repeat_state`: Current playback modes.
+    - `device`: Object with `name` and `volume_percent`.
+
+- **PUT https://api.spotify.com/v1/me/player/play**
+  - Use: Resume or start playback.
+  - Expect: 204 No Content on success.
+
+- **PUT https://api.spotify.com/v1/me/player/pause**
+  - Use: Pause playback.
+  - Expect: 204 No Content on success.
+
+- **POST https://api.spotify.com/v1/me/player/next**
+  - Use: Skip to next track.
+  - Expect: 204 No Content on success.
+
+- **POST https://api.spotify.com/v1/me/player/previous**
+  - Use: Skip to previous track.
+  - Expect: 204 No Content on success.
+
+- **PUT https://api.spotify.com/v1/me/player/volume**
+  - Use: Set playback volume.
+  - Expect: 204 No Content on success.
+
+- **PUT https://api.spotify.com/v1/me/player/shuffle**
+  - Use: Toggle shuffle.
+  - Expect: 204 No Content on success.
+
+- **PUT https://api.spotify.com/v1/me/player/repeat**
+  - Use: Cycle repeat mode.
+  - Expect: 204 No Content on success.
+
+- **GET https://api.spotify.com/v1/me/player/recently-played**
+  - Use: Get recently played tracks.
+  - Expect: An object with an `items` array, where each entry contains a `track` object with `id`, `name`, `artists`, and `album.images`.
 
 ### Lyrics API
-- `GET https://lrclib.net/api/get`: Fetches plain and synced lyrics for the currently playing track.
+
+- **GET https://lrclib.net/api/get**
+  - Use: Fetching lyrics by artist and track name.
+  - Expect: A JSON object containing `plainLyrics` (string) and `syncedLyrics` (LRC format string).
 
 ## Themes
 
