@@ -5,6 +5,49 @@
 	<key>logFormatVersion</key>
 	<integer>11</integer>
 	<key>logs</key>
-	<dict/>
+	<dict>
+		<key>5C05A7D3-66D3-44D3-B0E6-CBDFAC3FE0CD</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>5C05A7D3-66D3-44D3-B0E6-CBDFAC3FE0CD.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>E</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>2</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>9</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>spotifywidget project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>SpotDock</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project spotifywidget with scheme SpotDock and configuration Debug</string>
+			<key>timeStartedRecording</key>
+			<real>797923232.23077703</real>
+			<key>timeStoppedRecording</key>
+			<real>797923235.22281599</real>
+			<key>title</key>
+			<string>Building project spotifywidget with scheme SpotDock and configuration Debug</string>
+			<key>uniqueIdentifier</key>
+			<string>5C05A7D3-66D3-44D3-B0E6-CBDFAC3FE0CD</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

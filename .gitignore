@@ -1,0 +1,6 @@
+.DS_Store
+DerivedData/
+.env
+build_output.txt
+*.xcworkspace
+xcuserdata/

@@ -7,38 +7,31 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		C10000012F8780AB00000001 /* EnvironmentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000022F8780AB00000002 /* EnvironmentManager.swift */; };
-		C10000052F8780AB00000005 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000062F8780AB00000006 /* SettingsView.swift */; };
-		C10000032F8780AB00000003 /* .env in Resources */ = {isa = PBXBuildFile; fileRef = C10000042F8780AB00000004 /* .env */; };
 		A10000012F8780AB00000001 /* SpotifyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000022F8780AB00000002 /* SpotifyApp.swift */; };
 		A10000032F8780AB00000003 /* SpotifyPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000042F8780AB00000004 /* SpotifyPlayer.swift */; };
 		A10000052F8780AB00000005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000062F8780AB00000006 /* Assets.xcassets */; };
 		B10000012F8780AB00000001 /* VisualEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000022F8780AB00000002 /* VisualEffectView.swift */; };
 		B10000032F8780AB00000003 /* MiniPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000042F8780AB00000004 /* MiniPlayerView.swift */; };
 		B10000052F8780AB00000005 /* MiniPlayerWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000062F8780AB00000006 /* MiniPlayerWindow.swift */; };
+		C10000012F8780AB00000001 /* EnvironmentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000022F8780AB00000002 /* EnvironmentManager.swift */; };
+		C10000032F8780AB00000003 /* .env in Resources */ = {isa = PBXBuildFile; fileRef = C10000042F8780AB00000004 /* .env */; };
+		C10000052F8780AB00000005 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000062F8780AB00000006 /* SettingsView.swift */; };
 		D10000012F8780AB00000001 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000022F8780AB00000002 /* ThemeManager.swift */; };
 /* End PBXBuildFile section */
 
-/* Begin PBXContainerItemProxy section */
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXFileReference section */
-		C10000022F8780AB00000002 /* EnvironmentManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentManager.swift; sourceTree = "<group>"; };
-		C10000042F8780AB00000004 /* .env */ = {isa = PBXFileReference; lastKnownFileType = text; name = ".env"; path = "../.env"; sourceTree = "<group>"; };
-		C10000062F8780AB00000006 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A10000022F8780AB00000002 /* SpotifyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyApp.swift; sourceTree = "<group>"; };
 		A10000042F8780AB00000004 /* SpotifyPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyPlayer.swift; sourceTree = "<group>"; };
 		A10000062F8780AB00000006 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		A10000072F8780AB00000007 /* Spotify.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Spotify.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000072F8780AB00000007 /* SpotDock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SpotDock.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000082F8780AB00000008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000092F8780AB00000009 /* Spotify.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Spotify.entitlements; sourceTree = "<group>"; };
-		A10000212F8780AB00000021 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		B10000022F8780AB00000002 /* VisualEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectView.swift; sourceTree = "<group>"; };
 		B10000042F8780AB00000004 /* MiniPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerView.swift; sourceTree = "<group>"; };
 		B10000062F8780AB00000006 /* MiniPlayerWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerWindow.swift; sourceTree = "<group>"; };
+		C10000022F8780AB00000002 /* EnvironmentManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentManager.swift; sourceTree = "<group>"; };
+		C10000042F8780AB00000004 /* .env */ = {isa = PBXFileReference; lastKnownFileType = text; name = .env; path = ../.env; sourceTree = "<group>"; };
+		C10000062F8780AB00000006 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		D10000022F8780AB00000002 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -56,12 +49,12 @@
 		A100000B2F8780AB0000000B = {
 			isa = PBXGroup;
 			children = (
-				A100000C2F8780AB0000000C /* Spotify */,
+				A100000C2F8780AB0000000C /* SpotDock */,
 				A100000D2F8780AB0000000D /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		A100000C2F8780AB0000000C /* Spotify */ = {
+		A100000C2F8780AB0000000C /* SpotDock */ = {
 			isa = PBXGroup;
 			children = (
 				C10000042F8780AB00000004 /* .env */,
@@ -77,13 +70,13 @@
 				A10000082F8780AB00000008 /* Info.plist */,
 				A10000092F8780AB00000009 /* Spotify.entitlements */,
 			);
-			path = Spotify;
+			path = SpotDock;
 			sourceTree = "<group>";
 		};
 		A100000D2F8780AB0000000D /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A10000072F8780AB00000007 /* Spotify.app */,
+				A10000072F8780AB00000007 /* SpotDock.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -91,9 +84,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A100000E2F8780AB0000000E /* Spotify */ = {
+		A100000E2F8780AB0000000E /* SpotDock */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A100000F2F8780AB0000000F /* Build configuration list for PBXNativeTarget "Spotify" */;
+			buildConfigurationList = A100000F2F8780AB0000000F /* Build configuration list for PBXNativeTarget "SpotDock" */;
 			buildPhases = (
 				A10000102F8780AB00000010 /* Sources */,
 				A100000A2F8780AB0000000A /* Frameworks */,
@@ -103,9 +96,9 @@
 			);
 			dependencies = (
 			);
-			name = Spotify;
-			productName = Spotify;
-			productReference = A10000072F8780AB00000007 /* Spotify.app */;
+			name = SpotDock;
+			productName = SpotDock;
+			productReference = A10000072F8780AB00000007 /* SpotDock.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -136,7 +129,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				A100000E2F8780AB0000000E /* Spotify */,
+				A100000E2F8780AB0000000E /* SpotDock */,
 			);
 		};
 /* End PBXProject section */
@@ -170,9 +163,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A10000142F8780AB00000014 /* Debug */ = {
@@ -296,20 +286,21 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = Spotify/Spotify.entitlements;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = SpotDock/SpotDock.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 46CXWYA9TP;
 				ENABLE_HARDENED_RUNTIME = NO;
-				INFOPLIST_FILE = Spotify/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Spotify;
+				INFOPLIST_FILE = SpotDock/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SpotDock;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.pranab.spotifywidget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pranab.spotdock;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -321,20 +312,21 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = Spotify/Spotify.entitlements;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = SpotDock/SpotDock.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 46CXWYA9TP;
 				ENABLE_HARDENED_RUNTIME = NO;
-				INFOPLIST_FILE = Spotify/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Spotify;
+				INFOPLIST_FILE = SpotDock/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SpotDock;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.pranab.spotifywidget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pranab.spotdock;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -344,7 +336,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A100000F2F8780AB0000000F /* Build configuration list for PBXNativeTarget "Spotify" */ = {
+		A100000F2F8780AB0000000F /* Build configuration list for PBXNativeTarget "SpotDock" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A10000162F8780AB00000016 /* Debug */,
