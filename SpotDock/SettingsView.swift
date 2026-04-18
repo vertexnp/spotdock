@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @State private var selection: String? = "General"
     @Binding var miniPlayerController: MiniPlayerWindowController?
+    @Binding var dynamicIslandController: DynamicIslandWindowController?
 
     let categories = [
         ("General", "gearshape"),
@@ -12,7 +13,7 @@ struct SettingsView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            GeneralSettingsView(miniPlayerController: $miniPlayerController)
+            GeneralSettingsView(miniPlayerController: $miniPlayerController, dynamicIslandController: $dynamicIslandController)
                 .tabItem {
                     Label("General", systemImage: "gearshape")
                 }
@@ -39,13 +40,23 @@ struct GeneralSettingsView: View {
     @AppStorage("showLyricsByDefault") private var showLyricsByDefault = false
     @StateObject private var player = SpotifyPlayer.shared
     @Binding var miniPlayerController: MiniPlayerWindowController?
+    @Binding var dynamicIslandController: DynamicIslandWindowController?
     
-    private func toggleMiniPlayer() {
+    private func togglePlayer() {
+        // Toggle Mini Player
         if miniPlayerController == nil {
             miniPlayerController = MiniPlayerWindowController()
             miniPlayerController?.showWindow(nil)
         } else {
             miniPlayerController?.toggle()
+        }
+
+        // Ensure Dynamic Island is visible if enabled
+        if player.showDynamicIsland {
+            if dynamicIslandController == nil {
+                dynamicIslandController = DynamicIslandWindowController()
+            }
+            dynamicIslandController?.showWindow(nil)
         }
     }
 
@@ -53,21 +64,43 @@ struct GeneralSettingsView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // Mini Player Toggle
+                    // Dynamic Island Toggle
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text("Mini Player")
+                            Text("Show Dynamic Island")
                                 .font(.body)
                                 .fontWeight(.medium)
                             Spacer()
-                            Button(action: toggleMiniPlayer) {
+                            Toggle("", isOn: $player.showDynamicIsland)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                        }
+                        Text("Show the notch-integrated player at the top of your screen")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color(nsColor: NSColor.controlBackgroundColor))
+                    .cornerRadius(10)
+
+                    Divider()
+                    
+                    // Player Visibility
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("Show/Hide Player")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Spacer()
+                            Button(action: togglePlayer) {
                                 Image(systemName: "pip.fill")
                                     .font(.system(size: 14))
                             }
                             .buttonStyle(.bordered)
-                            .help("Toggle Mini Player")
+                            .help("Toggle Player")
                         }
-                        Text("Show or hide the floating mini player")
+                        Text("Show or hide the floating player window")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -110,6 +143,26 @@ struct GeneralSettingsView: View {
                                 .toggleStyle(.switch)
                         }
                         Text("Open lyrics view when mini player launches")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color(nsColor: NSColor.controlBackgroundColor))
+                    .cornerRadius(10)
+
+                    // System Now Playing
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("Use System Now Playing")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Spacer()
+                            Toggle("", isOn: $player.useSystemNowPlaying)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                        }
+                        Text("Fetch data directly from the Spotify app (no API, bypasses rate limits)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -325,5 +378,5 @@ struct AboutSettingsView: View {
 }
 
 #Preview {
-    SettingsView(miniPlayerController: .constant(nil))
+    SettingsView(miniPlayerController: .constant(nil), dynamicIslandController: .constant(nil))
 }

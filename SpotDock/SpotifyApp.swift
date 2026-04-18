@@ -11,17 +11,35 @@ import AppKit
 class AppViewModel: ObservableObject {
     @Published var player = SpotifyPlayer.shared
     @Published var miniPlayerController: MiniPlayerWindowController?
+    @Published var dynamicIslandController: DynamicIslandWindowController?
 
     init() {
         // Start background polling in player
         SpotifyPlayer.shared.startPolling()
 
-        // Show mini player on launch if already authenticated
+        // Show layouts on launch if already authenticated
         if SpotifyPlayer.shared.isAuthenticated {
             DispatchQueue.main.async {
-                self.miniPlayerController = MiniPlayerWindowController()
-                self.miniPlayerController?.showWindow(nil)
+                self.setupControllers()
             }
+        }
+    }
+    
+    func setupControllers() {
+        // Handle Mini Player
+        if miniPlayerController == nil {
+            miniPlayerController = MiniPlayerWindowController()
+        }
+        miniPlayerController?.showWindow(nil)
+        
+        // Handle Dynamic Island
+        if player.showDynamicIsland {
+            if dynamicIslandController == nil {
+                dynamicIslandController = DynamicIslandWindowController()
+            }
+            dynamicIslandController?.showWindow(nil)
+        } else {
+            dynamicIslandController?.window?.orderOut(nil)
         }
     }
 }
@@ -43,7 +61,7 @@ struct SpotDockApp: App {
     var body: some Scene {
         MenuBarExtra {
             ZStack(alignment: .topTrailing) {
-                SpotDockMenuView(miniPlayerController: $viewModel.miniPlayerController)
+                SpotDockMenuView(miniPlayerController: $viewModel.miniPlayerController, dynamicIslandController: $viewModel.dynamicIslandController)
                     .frame(width: themeManager.currentTheme == .classic ? 280 : 300)
                     .padding(themeManager.currentTheme == .classic ? 8 : 16)
 
@@ -59,12 +77,12 @@ struct SpotDockApp: App {
                                     .fill(Color.black.opacity(0.3))
                                     .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 1)
                             )
+                            .onTapGesture {
+                                focusSettingsWindow()
+                            }
                     }
                     .buttonStyle(.plain)
                     .padding(10)
-                    .onTapGesture {
-                        NSApp.activate(ignoringOtherApps: true)
-                    }
                 }
             }
         } label: {
@@ -75,14 +93,31 @@ struct SpotDockApp: App {
         }
         .menuBarExtraStyle(.window)
         .onChange(of: viewModel.player.isAuthenticated) { oldValue, newValue in
-            if newValue && viewModel.miniPlayerController == nil {
-                viewModel.miniPlayerController = MiniPlayerWindowController()
-                viewModel.miniPlayerController?.showWindow(nil)
+            if newValue {
+                viewModel.setupControllers()
             }
+        }
+        .onChange(of: viewModel.player.showDynamicIsland) { oldValue, newValue in
+            viewModel.setupControllers()
         }
 
         Settings {
-            SettingsView(miniPlayerController: $viewModel.miniPlayerController)
+            SettingsView(miniPlayerController: $viewModel.miniPlayerController, dynamicIslandController: $viewModel.dynamicIslandController)
+        }
+    }
+
+    private func focusSettingsWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        
+        // Force bring to front after a short delay to allow the window to be created/shown
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            for window in NSApp.windows {
+                // Settings windows typically have specific titles or classes
+                if window.title == "Settings" || window.className.contains("Settings") || window.frame.size.width == 600 {
+                    window.makeKeyAndOrderFront(nil)
+                    window.orderFrontRegardless()
+                }
+            }
         }
     }
 }
@@ -90,11 +125,25 @@ struct SpotDockApp: App {
 struct SpotDockMenuView: View {
     @ObservedObject var player = SpotifyPlayer.shared
     @Binding var miniPlayerController: MiniPlayerWindowController?
+    @Binding var dynamicIslandController: DynamicIslandWindowController?
     @StateObject private var themeManager = ThemeManager.shared
     @State private var isHovering = false
 
     private var menuConfiguration: ThemeConfiguration {
         ThemeConfiguration.configuration(for: themeManager.currentTheme)
+    }
+
+    private func focusSettingsWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            for window in NSApp.windows {
+                if window.title == "Settings" || window.className.contains("Settings") {
+                    window.makeKeyAndOrderFront(nil)
+                    window.orderFrontRegardless()
+                }
+            }
+        }
     }
 
     var body: some View {
@@ -141,19 +190,22 @@ struct SpotDockMenuView: View {
                         Image(systemName: "gearshape")
                             .font(.system(size: 14))
                             .foregroundColor(menuConfiguration.menuTextColor.opacity(0.7))
+                            .onTapGesture {
+                                focusSettingsWindow()
+                            }
                     }
                     .buttonStyle(.plain)
                     .help("Settings")
-                    .onTapGesture {
-                        NSApp.activate(ignoringOtherApps: true)
-                    }
                 }
             }
         }
         .background(Color.clear)
         .cornerRadius(themeManager.currentTheme == .fanFav ? 12 : 0)
         .onAppear {
-            Task { await player.fetchRecentlyPlayed() }
+            Task { 
+                await player.fetchRecentlyPlayed()
+                await player.fetchQueue()
+            }
         }
     }
     private var loginView: some View {
@@ -588,6 +640,7 @@ struct SpotDockMenuView: View {
                 .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
                     Task {
                         await player.fetchRecentlyPlayed()
+                        await player.fetchQueue()
                     }
                 }
                 .padding(.horizontal)
@@ -596,11 +649,11 @@ struct SpotDockMenuView: View {
                 .frame(width: 220)
                 .cornerRadius(16)
 
-                // Recently Played - positioned at bottom of ZStack
-                if !player.recommendations.isEmpty {
+                // Queue / Next Up - positioned at bottom of ZStack
+                if !player.queue.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
-                            ForEach(player.recommendations) { track in
+                            ForEach(player.queue) { track in
                                 AsyncImage(url: URL(string: track.albumArtURL)) { image in
                                     image.resizable().scaledToFill()
                                 } placeholder: {

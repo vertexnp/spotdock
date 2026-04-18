@@ -33,5 +33,7 @@
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>SpotDock needs permission to control Spotify to fetch current track information locally when the API is limited.</string>
 </dict>
 </plist>

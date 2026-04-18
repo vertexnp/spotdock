@@ -17,6 +17,7 @@
 		C10000032F8780AB00000003 /* .env in Resources */ = {isa = PBXBuildFile; fileRef = C10000042F8780AB00000004 /* .env */; };
 		C10000052F8780AB00000005 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000062F8780AB00000006 /* SettingsView.swift */; };
 		D10000012F8780AB00000001 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000022F8780AB00000002 /* ThemeManager.swift */; };
+		E10000012F8780AB00000001 /* DynamicIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000022F8780AB00000002 /* DynamicIslandView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +34,7 @@
 		C10000042F8780AB00000004 /* .env */ = {isa = PBXFileReference; lastKnownFileType = text; name = .env; path = ../.env; sourceTree = "<group>"; };
 		C10000062F8780AB00000006 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		D10000022F8780AB00000002 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
+		E10000022F8780AB00000002 /* DynamicIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicIslandView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -66,6 +68,7 @@
 				B10000042F8780AB00000004 /* MiniPlayerView.swift */,
 				B10000062F8780AB00000006 /* MiniPlayerWindow.swift */,
 				D10000022F8780AB00000002 /* ThemeManager.swift */,
+				E10000022F8780AB00000002 /* DynamicIslandView.swift */,
 				A10000062F8780AB00000006 /* Assets.xcassets */,
 				A10000082F8780AB00000008 /* Info.plist */,
 				A10000092F8780AB00000009 /* Spotify.entitlements */,
@@ -159,6 +162,7 @@
 				B10000032F8780AB00000003 /* MiniPlayerView.swift in Sources */,
 				B10000052F8780AB00000005 /* MiniPlayerWindow.swift in Sources */,
 				D10000012F8780AB00000001 /* ThemeManager.swift in Sources */,
+				E10000012F8780AB00000001 /* DynamicIslandView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

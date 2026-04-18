@@ -39,6 +39,9 @@ class SpotifyPlayer: ObservableObject {
     @Published var isShuffled: Bool = false
     @Published var repeatMode: String = "off" // off, track, context
     @Published var recommendations: [SpotifyTrack] = []
+    @Published var queue: [SpotifyTrack] = []
+    @AppStorage("useSystemNowPlaying") var useSystemNowPlaying: Bool = false
+    @AppStorage("showDynamicIsland") var showDynamicIsland: Bool = true
 
     private var currentTrackID: String = ""
     private var pollingTimer: AnyCancellable?
@@ -58,15 +61,94 @@ class SpotifyPlayer: ObservableObject {
     }
 
     func startPolling() {
-        pollingTimer = Timer.publish(every: 2, on: .main, in: .common)
+        pollingTimer = Timer.publish(every: 1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 Task {
                     guard let self = self else { return }
-                    // Always try API unless rate limited. The rate limiting logic is handled in refreshPlayerData.
-                    await self.refreshPlayerData()
+                    if self.useSystemNowPlaying {
+                        await self.fetchPlayerDataFromSystem()
+                    } else {
+                        await self.refreshPlayerData()
+                    }
                 }
             }
+    }
+
+    func fetchPlayerDataFromSystem() async {
+        let scriptSource = """
+        try
+            if application "Spotify" is running then
+                tell application "Spotify"
+                    set track_name to name of current track
+                    set artist_name to artist of current track
+                    set album_name to album of current track
+                    set track_id to id of current track
+                    set player_state to player state as string
+                    set track_duration to duration of current track
+                    set track_position to player position
+                    set art_url to artwork url of current track
+                    return track_name & "||" & artist_name & "||" & album_name & "||" & track_id & "||" & player_state & "||" & track_duration & "||" & track_position & "||" & art_url
+                end tell
+            else
+                return "Not Running"
+            end if
+        on error
+            return "Error"
+        end try
+        """
+        
+        var error: NSDictionary?
+        if let script = NSAppleScript(source: scriptSource) {
+            let output = script.executeAndReturnError(&error)
+            if let error = error {
+                print("🍎 [System] AppleScript Error: \(error)")
+                // Only clear error if we are not forcing system and it's a "real" error
+                if !useSystemNowPlaying { await refreshPlayerData() }
+                return
+            }
+            
+            let resultString = output.stringValue ?? ""
+            if resultString == "Not Running" {
+                DispatchQueue.main.async {
+                    self.trackName = "Spotify Not Running"
+                    self.artistName = ""
+                    self.isPlaying = false
+                }
+                return
+            } else if resultString == "Error" {
+                // Spotify is likely running but nothing is playing or we don't have permission yet
+                DispatchQueue.main.async {
+                    self.trackName = "Nothing Playing"
+                    self.artistName = "Open Spotify"
+                    self.isPlaying = false
+                }
+                return
+            }
+            
+            let parts = resultString.components(separatedBy: "||")
+            if parts.count >= 8 {
+                DispatchQueue.main.async {
+                    self.trackName = parts[0]
+                    self.artistName = parts[1]
+                    // albumName is parts[2]
+                    let newTrackID = parts[3]
+                    self.isPlaying = (parts[4].lowercased() == "playing")
+                    self.duration = (Double(parts[5]) ?? 0) / 1000.0
+                    self.progress = Double(parts[6]) ?? 0
+                    self.albumArtURL = parts[7]
+                    
+                    if newTrackID != self.currentTrackID && !newTrackID.isEmpty {
+                        self.currentTrackID = newTrackID
+                        Task {
+                            await self.fetchLyrics(artist: self.artistName, track: self.trackName)
+                        }
+                    }
+                    self.isRateLimited = false
+                    self.error = nil
+                }
+            }
+        }
     }
 
     func login() {
@@ -130,7 +212,11 @@ class SpotifyPlayer: ObservableObject {
                 }
                 
                 self.isAuthenticated = true
-                await refreshPlayerData()
+                if self.useSystemNowPlaying {
+                    await fetchPlayerDataFromSystem()
+                } else {
+                    await refreshPlayerData()
+                }
                 startPolling()
             }
         } catch {
@@ -146,6 +232,11 @@ class SpotifyPlayer: ObservableObject {
     }
 
     func refreshPlayerData() async {
+        if useSystemNowPlaying {
+            await fetchPlayerDataFromSystem()
+            return
+        }
+        
         guard isAuthenticated else { return }
 
         if accessToken == nil {
@@ -158,25 +249,14 @@ class SpotifyPlayer: ObservableObject {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         do {
-            print("🌐 [API] Fetching player data...")
             let (data, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse {
-                print("🌐 [API] Response status: \(httpResponse.statusCode)")
-                
                 if httpResponse.statusCode == 200 {
-                    // Clear any previous errors on successful response
                     self.error = nil
                     self.isRateLimited = false
                     let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                    if let track = json?["item"] as? [String: Any], let name = track["name"] as? String {
-                        print("🌐 [API] Now playing: \(name)")
-                    }
                     updatePlaybackState(json)
                 } else if httpResponse.statusCode == 204 {
-                    // Clear any previous errors on successful response
-                    self.error = nil
-                    self.isRateLimited = false
-                    print("🌐 [API] Nothing playing")
                     self.trackName = "Nothing Playing"
                     self.artistName = ""
                     self.albumArtURL = ""
@@ -185,18 +265,14 @@ class SpotifyPlayer: ObservableObject {
                     self.syncedLyrics = []
                     self.lyrics = ""
                 } else if httpResponse.statusCode == 429 {
-                    // Rate limit exceeded - show specific error
-                    print("🌐 [API] ⚠️ Rate limit reached (429)")
                     self.isRateLimited = true
-                    self.error = "[Sorry you will have to wait ...]"
+                    await fetchPlayerDataFromSystem()
                 } else if httpResponse.statusCode == 401 {
-                    print("🌐 [API] Unauthorized (401) - refreshing token")
                     await refreshAccessToken()
                 }
             }
         } catch {
-            print("🌐 [API] Error: \(error.localizedDescription)")
-            self.error = error.localizedDescription
+            await fetchPlayerDataFromSystem()
         }
     }
 
@@ -304,6 +380,13 @@ class SpotifyPlayer: ObservableObject {
     }
 
     func togglePlay() async {
+        if useSystemNowPlaying {
+            let script = "tell application \"Spotify\" to playpause"
+            NSAppleScript(source: script)?.executeAndReturnError(nil)
+            await fetchPlayerDataFromSystem()
+            return
+        }
+        
         guard let token = accessToken else { return }
         let url = isPlaying ? "https://api.spotify.com/v1/me/player/pause" : "https://api.spotify.com/v1/me/player/play"
         var request = URLRequest(url: URL(string: url)!)
@@ -314,6 +397,13 @@ class SpotifyPlayer: ObservableObject {
     }
 
     func nextTrack() async {
+        if useSystemNowPlaying {
+            let script = "tell application \"Spotify\" to next track"
+            NSAppleScript(source: script)?.executeAndReturnError(nil)
+            await fetchPlayerDataFromSystem()
+            return
+        }
+        
         guard let token = accessToken else { return }
         var request = URLRequest(url: URL(string: "https://api.spotify.com/v1/me/player/next")!)
         request.httpMethod = "POST"
@@ -323,6 +413,13 @@ class SpotifyPlayer: ObservableObject {
     }
 
     func previousTrack() async {
+        if useSystemNowPlaying {
+            let script = "tell application \"Spotify\" to previous track"
+            NSAppleScript(source: script)?.executeAndReturnError(nil)
+            await fetchPlayerDataFromSystem()
+            return
+        }
+        
         guard let token = accessToken else { return }
         var request = URLRequest(url: URL(string: "https://api.spotify.com/v1/me/player/previous")!)
         request.httpMethod = "POST"
@@ -332,6 +429,13 @@ class SpotifyPlayer: ObservableObject {
     }
 
     func setVolume(_ volume: Int) async {
+        if useSystemNowPlaying {
+            let script = "tell application \"Spotify\" to set sound volume to \(volume)"
+            NSAppleScript(source: script)?.executeAndReturnError(nil)
+            self.volume = volume
+            return
+        }
+        
         guard let token = accessToken else { return }
         var request = URLRequest(url: URL(string: "https://api.spotify.com/v1/me/player/volume?volume_percent=\(volume)")!)
         request.httpMethod = "PUT"
@@ -366,6 +470,8 @@ class SpotifyPlayer: ObservableObject {
     }
 
     func fetchRecentlyPlayed() async {
+        guard isAuthenticated else { return }
+        if accessToken == nil { await refreshAccessToken() }
         guard let token = accessToken else { return }
 
         var request = URLRequest(url: URL(string: "https://api.spotify.com/v1/me/player/recently-played?limit=5")!)
@@ -391,6 +497,36 @@ class SpotifyPlayer: ObservableObject {
             }
         } catch {
             print("Failed to fetch recently played: \(error.localizedDescription)")
+        }
+    }
+
+    func fetchQueue() async {
+        guard isAuthenticated else { return }
+        if accessToken == nil { await refreshAccessToken() }
+        guard let token = accessToken else { return }
+
+        var request = URLRequest(url: URL(string: "https://api.spotify.com/v1/me/player/queue")!)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let items = json["queue"] as? [[String: Any]] {
+                self.queue = items.prefix(10).compactMap { track -> SpotifyTrack? in
+                    guard let id = track["id"] as? String,
+                          let name = track["name"] as? String,
+                          let artists = track["artists"] as? [[String: Any]],
+                          let artistName = artists.first?["name"] as? String,
+                          let album = track["album"] as? [String: Any],
+                          let images = album["images"] as? [[String: Any]],
+                          let imageUrl = images.first?["url"] as? String else {
+                        return nil
+                    }
+                    return SpotifyTrack(id: id, name: name, artistName: artistName, albumArtURL: imageUrl)
+                }
+            }
+        } catch {
+            print("Failed to fetch queue: \(error.localizedDescription)")
         }
     }
 }
