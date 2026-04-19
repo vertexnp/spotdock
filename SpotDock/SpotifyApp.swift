@@ -77,9 +77,6 @@ struct SpotDockApp: App {
                                     .fill(Color.black.opacity(0.3))
                                     .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 1)
                             )
-                            .onTapGesture {
-                                focusSettingsWindow()
-                            }
                     }
                     .buttonStyle(.plain)
                     .padding(10)
@@ -105,21 +102,6 @@ struct SpotDockApp: App {
             SettingsView(miniPlayerController: $viewModel.miniPlayerController, dynamicIslandController: $viewModel.dynamicIslandController)
         }
     }
-
-    private func focusSettingsWindow() {
-        NSApp.activate(ignoringOtherApps: true)
-        
-        // Force bring to front after a short delay to allow the window to be created/shown
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            for window in NSApp.windows {
-                // Settings windows typically have specific titles or classes
-                if window.title == "Settings" || window.className.contains("Settings") || window.frame.size.width == 600 {
-                    window.makeKeyAndOrderFront(nil)
-                    window.orderFrontRegardless()
-                }
-            }
-        }
-    }
 }
 
 struct SpotDockMenuView: View {
@@ -131,19 +113,6 @@ struct SpotDockMenuView: View {
 
     private var menuConfiguration: ThemeConfiguration {
         ThemeConfiguration.configuration(for: themeManager.currentTheme)
-    }
-
-    private func focusSettingsWindow() {
-        NSApp.activate(ignoringOtherApps: true)
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            for window in NSApp.windows {
-                if window.title == "Settings" || window.className.contains("Settings") {
-                    window.makeKeyAndOrderFront(nil)
-                    window.orderFrontRegardless()
-                }
-            }
-        }
     }
 
     var body: some View {
@@ -190,9 +159,6 @@ struct SpotDockMenuView: View {
                         Image(systemName: "gearshape")
                             .font(.system(size: 14))
                             .foregroundColor(menuConfiguration.menuTextColor.opacity(0.7))
-                            .onTapGesture {
-                                focusSettingsWindow()
-                            }
                     }
                     .buttonStyle(.plain)
                     .help("Settings")
