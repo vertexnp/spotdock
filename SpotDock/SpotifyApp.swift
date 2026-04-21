@@ -211,37 +211,16 @@ struct SpotDockMenuView: View {
 
     var body: some View {
         VStack(spacing: themeManager.currentTheme == .classic ? 8 : 14) {
-            if player.isLoading {
-                ProgressView()
-                    .frame(height: 200)
-            } else if !player.isAuthenticated && isSpotifySource {
-                loginView
-            } else {
-                // Show player content, with error overlay if needed
-                Group {
-                    switch themeManager.currentTheme {
-                    case .classic:
-                        classicMenuView
-                    case .minimal:
-                        minimalMenuView
-                    case .fanFav:
-                        fanFavMenuView
-                    }
+            // Show player content
+            Group {
+                switch themeManager.currentTheme {
+                case .classic:
+                    classicMenuView
+                case .minimal:
+                    minimalMenuView
+                case .fanFav:
+                    fanFavMenuView
                 }
-                .overlay(
-                    player.error != nil && isSpotifySource ?
-                    VStack {
-                        Text("⚠️ \(player.error!)")
-                            .foregroundColor(.white)
-                            .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.orange.opacity(0.8))
-                            .cornerRadius(8)
-                            .padding(.top, 8)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .top) : nil
-                )
             }
             
             if themeManager.currentTheme == .classic {
@@ -264,51 +243,19 @@ struct SpotDockMenuView: View {
         .onAppear {
             if isSpotifySource {
                 Task { 
-                    await player.fetchRecentlyPlayed()
-                    await player.fetchQueue()
+                    // OAuth-dependent fetches removed
                 }
             }
         }
     }
-    private var loginView: some View {
-        VStack(spacing: 12) {
-            if let nsImage = NSImage(named: "logo") {
-                Image(nsImage: nsImage)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 45, height: 45)
-            } else {
-                Image(systemName: "person.crop.circle.badge.exclamationmark")
-                    .font(.system(size: 45))
-                    .foregroundColor(.secondary)
-            }
-
-            Text("Log in to SpotDock")
-                .font(.headline)
-
-            Text("Sign in to load your account ID and show your recently played songs.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-
-            Button("Login") {
-                player.login()
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 220)
-    }
-
     private var classicMenuView: some View {
         ZStack(alignment: .bottom) {
-            // Album Art covering everything with 2px padding
+            // Album Art covering everything
             currentAlbumArt
             .aspectRatio(1, contentMode: .fill)
-            .frame(width: 264, height: 264)
+            .frame(width: 268, height: 268) // Slightly larger to ensure full coverage
             .clipped()
             .cornerRadius(12)
-            .padding(2)
 
             // Hover Controls
             if isHovering {
@@ -329,7 +276,8 @@ struct SpotDockMenuView: View {
                                 .lineLimit(1)
                                 .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                         }
-                        .padding(.top, 45) // Increased padding by 5px to extend gradient higher
+                        .padding(.top, 45)
+                        .padding(.horizontal, 16) // Padding for text but not gradient
 
                         // Progress
                         if !isUniversalActive {
@@ -367,7 +315,7 @@ struct SpotDockMenuView: View {
 
                                 // Repeat
                                 if isSpotifySource {
-                                    Button(action: { Task { await player.cycleRepeat() } }) {
+                                    Button(action: { Task { await player.toggleRepeat() } }) {
                                         Image(systemName: player.repeatMode == "track" ? "repeat.1" : "repeat")
                                             .font(.system(size: 14, weight: player.repeatMode != "off" ? .bold : .medium))
                                             .foregroundColor(player.repeatMode != "off" ? .green : .white.opacity(0.7))
@@ -385,6 +333,7 @@ struct SpotDockMenuView: View {
                                 .padding(.bottom, 20)
                         }
                     }
+                    .frame(maxWidth: .infinity) // Ensure the controls VStack fills the width
                     .background(
                         LinearGradient(
                             stops: [
@@ -398,10 +347,12 @@ struct SpotDockMenuView: View {
                         )
                     )
                 }
+                .frame(maxWidth: .infinity) // Outer VStack fills width too
                 .transition(.opacity)
+                .cornerRadius(12) // Round the corners of the overlay to match album art
             }
         }
-        .frame(width: 264, height: 264)
+        .frame(width: 268, height: 268)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.2)) {
                 isHovering = hovering
@@ -462,7 +413,7 @@ struct SpotDockMenuView: View {
 
                     // Repeat
                     if isSpotifySource {
-                        Button(action: { Task { await player.cycleRepeat() } }) {
+                        Button(action: { Task { await player.toggleRepeat() } }) {
                             Image(systemName: player.repeatMode == "track" ? "repeat.1" : "repeat")
                                 .font(.system(size: 16, weight: player.repeatMode != "off" ? .bold : .semibold))
                                 .foregroundColor(player.repeatMode != "off" ? .green : .white.opacity(0.7))
@@ -594,162 +545,132 @@ struct SpotDockMenuView: View {
     @State private var vinylRotationAngle: Double = 0
 
     private var fanFavMenuView: some View {
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 12) {
+                vinylRecordView
+                fanFavTrackInfoView
+                
+                if !isUniversalActive {
+                    progressBar(color: .white.opacity(0.6), bgColor: Color.white.opacity(0.15))
+                        .frame(height: 3)
+                    fanFavControlsView
+                } else {
+                    Text("Browser Playback")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white.opacity(0.4))
+                        .padding(.top, 4)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.top)
+            .padding(.bottom, 64)
+            .frame(width: 220)
+            .cornerRadius(16)
+        }
+    }
+
+    private var vinylRecordView: some View {
         TimelineView(.animation(minimumInterval: 0.05)) { context in
-            ZStack(alignment: .bottom) {
-                VStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(
+                        AngularGradient(
+                            gradient: Gradient(colors: [
+                                Color(white: 0.08), Color(white: 0.15), Color(white: 0.08),
+                                Color(white: 0.12), Color(white: 0.08), Color(white: 0.14)
+                            ]),
+                            center: .center
+                        )
+                    )
+                    .frame(width: 120, height: 120)
+                    .rotationEffect(.degrees(vinylRotationAngle))
 
-                    // Vinyl record
-                    ZStack {
-                        Circle()
-                            .fill(
-                                AngularGradient(
-                                    gradient: Gradient(colors: [
-                                        Color(white: 0.08), Color(white: 0.15), Color(white: 0.08),
-                                        Color(white: 0.12), Color(white: 0.08), Color(white: 0.14)
-                                    ]),
-                                    center: .center
-                                )
-                            )
-                            .frame(width: 120, height: 120)
-                            .rotationEffect(.degrees(vinylRotationAngle))
-
-                        // Grooves
-                        ForEach(0..<8) { i in
-                            Circle()
-                                .stroke(Color(white: 0.05).opacity(0.4), lineWidth: 0.5)
-                                .frame(width: CGFloat(30 + i * 11), height: CGFloat(30 + i * 11))
-                        }
-
-                        // Highlight arc
-                        Circle()
-                            .trim(from: 0.1, to: 0.35)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 10)
-                            .frame(width: 120, height: 120)
-                            .rotationEffect(.degrees(vinylRotationAngle))
-
-                        // Album art center
-                        currentAlbumArt
-                        .frame(width: 44, height: 44)
-                        .clipShape(Circle())
-
-                        Circle().fill(Color(white: 0.05)).frame(width: 5, height: 5)
-                    }
-                    .onChange(of: context.date) { _, _ in
-                        if currentIsPlaying {
-                            vinylRotationAngle += 1.5
-                            if vinylRotationAngle >= 360 {
-                                vinylRotationAngle -= 360
-                            }
-                        }
-                    }
-
-                    // Track info
-                    VStack(spacing: 3) {
-                        Text(currentTrackName)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.white)
-                            .lineLimit(1)
-                        Text(currentArtistName)
-                            .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.6))
-                            .lineLimit(1)
-                    }
-
-                    // Progress bar
-                    if !isUniversalActive {
-                        progressBar(color: .white.opacity(0.6), bgColor: Color.white.opacity(0.15))
-                            .frame(height: 3)
-                    }
-
-                    // Controls
-                    if !isUniversalActive {
-                        HStack(spacing: 16) {
-                            // Shuffle
-                            if isSpotifySource {
-                                Button(action: { Task { await player.toggleShuffle() } }) {
-                                    Image(systemName: "shuffle")
-                                        .font(.system(size: 12, weight: player.isShuffled ? .bold : .medium))
-                                        .foregroundColor(player.isShuffled ? Color(red: 0.9, green: 1.0, blue: 0.7) : .white.opacity(0.5))
-                                }
-                                .buttonStyle(.plain)
-                            }
-
-                            Button(action: { previousTrack() }) {
-                                Image(systemName: "backward.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.white.opacity(0.7))
-                            }
-                            .buttonStyle(.plain)
-
-                            Button(action: { togglePlay() }) {
-                                Image(systemName: currentIsPlaying ? "pause.fill" : "play.fill")
-                                    .font(.system(size: 20, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(width: 40, height: 40)
-                                    .background(Circle().fill(Color(white: 0.1)))
-                            }
-                            .buttonStyle(.plain)
-
-                            Button(action: { nextTrack() }) {
-                                Image(systemName: "forward.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.white.opacity(0.7))
-                            }
-                            .buttonStyle(.plain)
-
-                            // Repeat
-                            if isSpotifySource {
-                                Button(action: { Task { await player.cycleRepeat() } }) {
-                                    Image(systemName: player.repeatMode == "track" ? "repeat.1" : "repeat")
-                                        .font(.system(size: 12, weight: player.repeatMode != "off" ? .bold : .medium))
-                                        .foregroundColor(player.repeatMode != "off" ? Color(red: 0.9, green: 1.0, blue: 0.7) : .white.opacity(0.5))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    } else {
-                        Text("Browser Playback")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white.opacity(0.4))
-                            .padding(.top, 4)
-                    }
+                // Grooves
+                ForEach(0..<8) { i in
+                    Circle()
+                        .stroke(Color(white: 0.05).opacity(0.4), lineWidth: 0.5)
+                        .frame(width: CGFloat(30 + i * 11), height: CGFloat(30 + i * 11))
                 }
-                .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
-                    if isSpotifySource {
-                        Task {
-                            await player.fetchRecentlyPlayed()
-                            await player.fetchQueue()
-                        }
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.top)
-                .padding(.bottom, 64)
-                .frame(width: 220)
-                .cornerRadius(16)
 
-                // Queue / Next Up - positioned at bottom of ZStack
-                if isSpotifySource && !player.queue.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(player.queue) { track in
-                                AsyncImage(url: URL(string: track.albumArtURL)) { image in
-                                    image.resizable().scaledToFill()
-                                } placeholder: {
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color(white: 0.15))
-                                }
-                                .frame(width: 52, height: 52)
-                                .cornerRadius(8)
-                                .clipped()
-                            }
-                        }
-                    }
-                    .frame(height: 52)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-                    .padding(.bottom, 4)
+                // Highlight arc
+                Circle()
+                    .trim(from: 0.1, to: 0.35)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 10)
+                    .frame(width: 120, height: 120)
+                    .rotationEffect(.degrees(vinylRotationAngle))
+
+                // Album art center
+                currentAlbumArt
+                .frame(width: 44, height: 44)
+                .clipShape(Circle())
+
+                Circle().fill(Color(white: 0.05)).frame(width: 5, height: 5)
+            }
+            .onChange(of: context.date) { _, _ in
+                if currentIsPlaying {
+                    vinylRotationAngle += 1.5
+                    if vinylRotationAngle >= 360 { vinylRotationAngle -= 360 }
                 }
+            }
+        }
+    }
+
+    private var fanFavTrackInfoView: some View {
+        VStack(spacing: 3) {
+            Text(currentTrackName)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white)
+                .lineLimit(1)
+            Text(currentArtistName)
+                .font(.system(size: 12))
+                .foregroundColor(.white.opacity(0.6))
+                .lineLimit(1)
+        }
+    }
+
+    private var fanFavControlsView: some View {
+        HStack(spacing: 16) {
+            // Shuffle
+            if isSpotifySource {
+                Button(action: { Task { await player.toggleShuffle() } }) {
+                    Image(systemName: "shuffle")
+                        .font(.system(size: 12, weight: player.isShuffled ? .bold : .medium))
+                        .foregroundColor(player.isShuffled ? Color(red: 0.9, green: 1.0, blue: 0.7) : .white.opacity(0.5))
+                }
+                .buttonStyle(.plain)
+            }
+
+            Button(action: { previousTrack() }) {
+                Image(systemName: "backward.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(.white.opacity(0.7))
+            }
+            .buttonStyle(.plain)
+
+            Button(action: { togglePlay() }) {
+                Image(systemName: currentIsPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(Color(white: 0.1)))
+            }
+            .buttonStyle(.plain)
+
+            Button(action: { nextTrack() }) {
+                Image(systemName: "forward.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(.white.opacity(0.7))
+            }
+            .buttonStyle(.plain)
+
+            // Repeat
+            if isSpotifySource {
+                Button(action: { Task { await player.toggleRepeat() } }) {
+                    Image(systemName: player.repeatMode == "track" ? "repeat.1" : "repeat")
+                        .font(.system(size: 12, weight: player.repeatMode != "off" ? .bold : .medium))
+                        .foregroundColor(player.repeatMode != "off" ? Color(red: 0.9, green: 1.0, blue: 0.7) : .white.opacity(0.5))
+                }
+                .buttonStyle(.plain)
             }
         }
     }

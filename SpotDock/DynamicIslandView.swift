@@ -15,40 +15,29 @@ struct NotchShape: Shape {
 
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        let wingSize: CGFloat = 30 // Size of the curve coming from the top corners
+        let wingSize: CGFloat = 30 
         let pillHeight: CGFloat = rect.height
         let cornerRadius: CGFloat = 20 + (progress * 12)
         
         let leftEdge = wingSize
         let rightEdge = rect.width - wingSize
         
-        // Start from top left corner of the screen
         path.move(to: CGPoint(x: 0, y: 0))
-        
-        // Left Wing - Smooth curve from corner into the island
         path.addQuadCurve(to: CGPoint(x: leftEdge, y: 22), 
                          control: CGPoint(x: leftEdge, y: 0))
-        
-        // Left side of the pill
         path.addLine(to: CGPoint(x: leftEdge, y: pillHeight - cornerRadius))
         path.addArc(center: CGPoint(x: leftEdge + cornerRadius, y: pillHeight - cornerRadius),
                     radius: cornerRadius,
                     startAngle: .degrees(180),
                     endAngle: .degrees(90),
                     clockwise: true)
-        
-        // Bottom edge
         path.addLine(to: CGPoint(x: rightEdge - cornerRadius, y: pillHeight))
-        
-        // Right side of the pill
         path.addArc(center: CGPoint(x: rightEdge - cornerRadius, y: pillHeight - cornerRadius),
                     radius: cornerRadius,
                     startAngle: .degrees(90),
                     endAngle: .degrees(0),
                     clockwise: true)
         path.addLine(to: CGPoint(x: rightEdge, y: 22))
-        
-        // Right Wing - Smooth curve back to the top right corner
         path.addQuadCurve(to: CGPoint(x: rect.width, y: 0), 
                          control: CGPoint(x: rightEdge, y: 0))
         
@@ -100,7 +89,7 @@ struct DynamicIslandView: View {
         let isExpanded = size == .expanded
         
         ZStack(alignment: .top) {
-            // 1. Background Layer - The "Winged" Notch
+            // 1. Background Layer
             ZStack {
                 if isExpanded {
                     NotchShape(progress: 1.0)
@@ -125,18 +114,15 @@ struct DynamicIslandView: View {
             ZStack(alignment: .center) {
                 // Collapsed content
                 collapsedView
-                    .frame(width: 300, height: 30)
-                    .contentShape(Rectangle())
                     .opacity(isExpanded ? 0 : 1)
                     .scaleEffect(isExpanded ? 0.8 : (isHovering ? 1.05 : 1.0))
                 
                 // Expanded content
                 expandedView
-                    .frame(width: 420, height: 179.5)
                     .opacity(isExpanded ? 1 : 0)
                     .scaleEffect(isExpanded ? 1.0 : 0.9)
             }
-            .frame(width: isExpanded ? 420 : 300, height: isExpanded ? 179.5 : 30)
+            .frame(width: isExpanded ? 420 : 320, height: isExpanded ? 179.5 : 30)
 
             // 3. Interaction Area
             Color.black.opacity(0.001)
@@ -207,22 +193,25 @@ struct DynamicIslandView: View {
     }
 
     private var collapsedView: some View {
-        HStack(spacing: 0) {
+        ZStack {
             if currentIsPlaying {
-                currentAlbumArt
-                    .frame(width: 24, height: 24)
-                    .cornerRadius(6)
-                    .padding(.leading, 38) // Original 28 + 10 padding
-                Spacer()
-                barsView(count: 4, height: 12).padding(.trailing, 38) // Original 28 + 10 padding
+                HStack(spacing: 0) {
+                    currentAlbumArt
+                        .frame(width: 24, height: 24)
+                        .cornerRadius(6)
+                    Spacer()
+                    barsView(count: 4, height: 12)
+                }
+                .padding(.horizontal, 35) // Inset by 25 + 10 padding = 35
             } else {
-                EyesView(scale: 0.7).padding(.leading, 38) // Original 28 + 10 padding
-                Spacer()
-                // Removed SleepingView as requested
+                HStack {
+                    EyesView(scale: 0.7)
+                        .padding(.leading, 35)
+                    Spacer()
+                }
             }
         }
-        .padding(.horizontal, 10) // Explicit 10px padding
-        .frame(height: 32)
+        .frame(width: isHovering ? 320 : 300, height: 30)
     }
 
     private var expandedView: some View {
@@ -287,7 +276,7 @@ struct DynamicIslandView: View {
                 } else { Spacer().frame(width: 14) }
             }.padding(.horizontal, 40).padding(.bottom, 20)
         }
-        .frame(height: 179.5)
+        .frame(width: 420, height: 179.5)
     }
 
     private func barsView(count: Int, height: CGFloat) -> some View {
@@ -295,7 +284,6 @@ struct DynamicIslandView: View {
     }
 
     private func bar(index: Int, height: CGFloat) -> some View {
-        // Reduced frequency from 0.1s to 0.15s
         TimelineView(.animation(minimumInterval: 0.15)) { context in
             let phase = CGFloat(index) * 0.5 + CGFloat(context.date.timeIntervalSinceReferenceDate * 4)
             let barHeight = currentIsPlaying ? (height * 0.4 + sin(phase) * (height * 0.3) + (height * 0.3)) : 3
@@ -313,7 +301,6 @@ struct DynamicIslandView: View {
 struct EyesView: View {
     var scale: CGFloat = 1.0
     var body: some View {
-        // Reduced frequency from 0.02s (50fps) to 0.1s (10fps) for background tracking
         TimelineView(.animation(minimumInterval: 0.1)) { timeline in
             Canvas { context, size in
                 let time = timeline.date.timeIntervalSinceReferenceDate

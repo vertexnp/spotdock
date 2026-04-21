@@ -194,28 +194,9 @@ struct GeneralSettingsView: View {
                     .background(Color(nsColor: NSColor.controlBackgroundColor))
                     .cornerRadius(10)
 
-                    // Account & Actions
+                    // Actions Section
                     VStack(alignment: .leading, spacing: 12) {
                         Divider()
-                        
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("SpotDock Account")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text(player.isAuthenticated ? "Connected" : "Not connected")
-                                    .font(.subheadline)
-                                    .foregroundColor(player.isAuthenticated ? .green : .secondary)
-                            }
-                            Spacer()
-                            if player.isAuthenticated {
-                                Button("Logout") {
-                                    player.logout()
-                                }
-                                .buttonStyle(.bordered)
-                                .tint(.red.opacity(0.8))
-                            }
-                        }
                         
                         HStack {
                             Spacer()

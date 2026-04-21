@@ -82,7 +82,7 @@ class DynamicIslandWindowController: NSObject, ObservableObject {
         super.init()
         
         let panel = DynamicIslandPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 300, height: 30),
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 30),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -105,7 +105,7 @@ class DynamicIslandWindowController: NSObject, ObservableObject {
 
         let hostingView = NSHostingView(rootView: rootView)
         hostingView.layer?.backgroundColor = .clear
-        hostingView.frame = NSRect(x: 0, y: 0, width: 300, height: 30)
+        hostingView.frame = NSRect(x: 0, y: 0, width: 320, height: 30)
         panel.contentView = hostingView
         
         self.window = panel
@@ -151,8 +151,8 @@ class DynamicIslandWindowController: NSObject, ObservableObject {
             }
         }
 
-        let newWidth: CGFloat = (size == .collapsed) ? 240 : 420
-        let newHeight: CGFloat = (size == .collapsed) ? 32 : 179.5
+        let newWidth: CGFloat = (size == .collapsed) ? 320 : 420
+        let newHeight: CGFloat = (size == .collapsed) ? 30 : 179.5
         
         let screenFrame = screen.frame
         let x = screenFrame.origin.x + (screenFrame.width - newWidth) / 2
@@ -162,8 +162,8 @@ class DynamicIslandWindowController: NSObject, ObservableObject {
         let newFrame = NSRect(x: x, y: y, width: newWidth, height: newHeight)
         
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.15
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            context.duration = 0.18
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             window.animator().setFrame(newFrame, display: true)
         }
         window.orderFrontRegardless()
