@@ -42,21 +42,25 @@ struct GeneralSettingsView: View {
     @Binding var miniPlayerController: MiniPlayerWindowController?
     @Binding var dynamicIslandController: DynamicIslandWindowController?
     
-    private func togglePlayer() {
-        // Toggle Mini Player
-        if miniPlayerController == nil {
-            miniPlayerController = MiniPlayerWindowController()
+    private func updateMiniPlayerVisibility(_ show: Bool) {
+        if show {
+            if miniPlayerController == nil {
+                miniPlayerController = MiniPlayerWindowController()
+            }
             miniPlayerController?.showWindow(nil)
         } else {
-            miniPlayerController?.toggle()
+            miniPlayerController?.close()
         }
+    }
 
-        // Ensure Dynamic Island is visible if enabled
-        if player.showDynamicIsland {
+    private func updateDynamicIslandVisibility(_ show: Bool) {
+        if show {
             if dynamicIslandController == nil {
                 dynamicIslandController = DynamicIslandWindowController()
             }
             dynamicIslandController?.showWindow(nil)
+        } else {
+            dynamicIslandController?.close()
         }
     }
 
@@ -64,92 +68,111 @@ struct GeneralSettingsView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // Dynamic Island Toggle
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("Show Dynamic Island")
-                                .font(.body)
-                                .fontWeight(.medium)
-                            Spacer()
-                            Toggle("", isOn: $player.showDynamicIsland)
-                                .labelsHidden()
-                                .toggleStyle(.switch)
-                        }
-                        Text("Show the notch-integrated player at the top of your screen")
+                    
+                    // Components Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Components")
                             .font(.caption)
+                            .fontWeight(.semibold)
                             .foregroundColor(.secondary)
+                            .padding(.leading, 4)
+
+                        // Mini Player Toggle
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("Floating Mini Player")
+                                    .font(.body)
+                                    .fontWeight(.medium)
+                                Spacer()
+                                Toggle("", isOn: $player.showMiniPlayer)
+                                    .labelsHidden()
+                                    .toggleStyle(.switch)
+                                    .onChange(of: player.showMiniPlayer) { _, newValue in
+                                        updateMiniPlayerVisibility(newValue)
+                                    }
+                            }
+                            Text("Show a floating, draggable player window on your desktop")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color(nsColor: NSColor.controlBackgroundColor))
+                        .cornerRadius(10)
+
+                        // Dynamic Island Toggle
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("Dynamic Island")
+                                    .font(.body)
+                                    .fontWeight(.medium)
+                                Spacer()
+                                Toggle("", isOn: $player.showDynamicIsland)
+                                    .labelsHidden()
+                                    .toggleStyle(.switch)
+                                    .onChange(of: player.showDynamicIsland) { _, newValue in
+                                        updateDynamicIslandVisibility(newValue)
+                                    }
+                            }
+                            Text("Integrate the player into the top notch of your display")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color(nsColor: NSColor.controlBackgroundColor))
+                        .cornerRadius(10)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color(nsColor: NSColor.controlBackgroundColor))
-                    .cornerRadius(10)
 
                     Divider()
                     
-                    // Player Visibility
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("Show/Hide Player")
-                                .font(.body)
-                                .fontWeight(.medium)
-                            Spacer()
-                            Button(action: togglePlayer) {
-                                Image(systemName: "pip.fill")
-                                    .font(.system(size: 14))
-                            }
-                            .buttonStyle(.bordered)
-                            .help("Toggle Player")
-                        }
-                        Text("Show or hide the floating player window")
+                    // Features Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Features")
                             .font(.caption)
+                            .fontWeight(.semibold)
                             .foregroundColor(.secondary)
+                            .padding(.leading, 4)
+
+                        // Universal Now Playing
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("Universal Now Playing")
+                                    .font(.body)
+                                    .fontWeight(.medium)
+                                Spacer()
+                                Toggle("", isOn: $player.useUniversalNowPlaying)
+                                    .labelsHidden()
+                                    .toggleStyle(.switch)
+                            }
+                            Text("Show music from browsers (YouTube) when Spotify is idle. Mini player remains Spotify-only.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color(nsColor: NSColor.controlBackgroundColor))
+                        .cornerRadius(10)
+
+                        // Launch at Login
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("Launch at Login")
+                                    .font(.body)
+                                    .fontWeight(.medium)
+                                Spacer()
+                                Toggle("", isOn: $launchAtLogin)
+                                    .labelsHidden()
+                                    .toggleStyle(.switch)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color(nsColor: NSColor.controlBackgroundColor))
+                        .cornerRadius(10)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color(nsColor: NSColor.controlBackgroundColor))
-                    .cornerRadius(10)
 
                     Divider()
-
-                    // Launch at Login
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("Launch at Login")
-                                .font(.body)
-                                .fontWeight(.medium)
-                            Spacer()
-                            Toggle("", isOn: $launchAtLogin)
-                                .labelsHidden()
-                                .toggleStyle(.switch)
-                        }
-                        Text("Automatically start when you log in")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color(nsColor: NSColor.controlBackgroundColor))
-                    .cornerRadius(10)
-
-                    // Show Lyrics by Default
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("Show Lyrics by Default")
-                                .font(.body)
-                                .fontWeight(.medium)
-                            Spacer()
-                            Toggle("", isOn: $showLyricsByDefault)
-                                .labelsHidden()
-                                .toggleStyle(.switch)
-                        }
-                        Text("Open lyrics view when mini player launches")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color(nsColor: NSColor.controlBackgroundColor))
-                    .cornerRadius(10)
 
                     // System Now Playing
                     VStack(alignment: .leading, spacing: 6) {

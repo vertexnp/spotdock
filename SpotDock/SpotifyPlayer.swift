@@ -41,7 +41,9 @@ class SpotifyPlayer: ObservableObject {
     @Published var recommendations: [SpotifyTrack] = []
     @Published var queue: [SpotifyTrack] = []
     @AppStorage("useSystemNowPlaying") var useSystemNowPlaying: Bool = false
+    @AppStorage("useUniversalNowPlaying") var useUniversalNowPlaying: Bool = true
     @AppStorage("showDynamicIsland") var showDynamicIsland: Bool = true
+    @AppStorage("showMiniPlayer") var showMiniPlayer: Bool = true
 
     private var currentTrackID: String = ""
     private var pollingTimer: AnyCancellable?
@@ -49,6 +51,8 @@ class SpotifyPlayer: ObservableObject {
     private let clientSecret = EnvironmentManager.shared.get("SPOTIFY_CLIENT_SECRET") ?? ""
     private var accessToken: String? = nil
     private var refreshToken: String?
+
+    private var notificationObservers: [AnyCancellable] = []
 
     private init() {
         if let savedToken = UserDefaults.standard.string(forKey: "SpotifyRefreshToken") {
@@ -58,10 +62,28 @@ class SpotifyPlayer: ObservableObject {
             self.refreshToken = envToken
             self.isAuthenticated = true
         }
+        
+        setupNotificationObservers()
+    }
+
+    private func setupNotificationObservers() {
+        // Listen for Spotify's internal playback state changes (bypasses polling for immediate updates)
+        DistributedNotificationCenter.default().publisher(for: NSNotification.Name("com.spotify.client.PlaybackStateChanged"))
+            .sink { [weak self] _ in
+                Task { [weak self] in
+                    if self?.useSystemNowPlaying == true {
+                        await self?.fetchPlayerDataFromSystem()
+                    } else {
+                        await self?.refreshPlayerData()
+                    }
+                }
+            }
+            .store(in: &notificationObservers)
     }
 
     func startPolling() {
-        pollingTimer = Timer.publish(every: 1, on: .main, in: .common)
+        // Reduced frequency from 1s to 5s since notifications handle immediate changes
+        pollingTimer = Timer.publish(every: 5, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 Task {
@@ -144,9 +166,24 @@ class SpotifyPlayer: ObservableObject {
                             await self.fetchLyrics(artist: self.artistName, track: self.trackName)
                         }
                     }
+                    
+                    // Fetch system volume
+                    self.updateSystemVolume()
+                    
                     self.isRateLimited = false
                     self.error = nil
                 }
+            }
+        }
+    }
+
+    private func updateSystemVolume() {
+        let scriptSource = "output volume of (get volume settings)"
+        if let script = NSAppleScript(source: scriptSource) {
+            var error: NSDictionary?
+            let result = script.executeAndReturnError(&error)
+            if error == nil {
+                self.volume = Int(result.int32Value)
             }
         }
     }
@@ -300,6 +337,9 @@ class SpotifyPlayer: ObservableObject {
         if let device = json["device"] as? [String: Any] {
             self.volume = device["volume_percent"] as? Int ?? 50
             self.deviceName = device["name"] as? String ?? ""
+        } else {
+            // Fallback to system volume if device info is missing
+            self.updateSystemVolume()
         }
 
         // Fetch lyrics if the track has changed

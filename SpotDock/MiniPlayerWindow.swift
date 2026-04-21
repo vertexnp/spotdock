@@ -63,51 +63,80 @@ class MiniPlayerWindowController: NSWindowController {
     }
 }
 
-class DynamicIslandWindowController: NSWindowController, ObservableObject {
+class DynamicIslandPanel: NSPanel {
+    override var canBecomeKey: Bool { false }
+    override var canBecomeMain: Bool { false }
+    override func makeKey() {}
+    override func makeKeyAndOrderFront(_ sender: Any?) {
+        self.orderFrontRegardless()
+    }
+}
+
+@MainActor
+class DynamicIslandWindowController: NSObject, ObservableObject {
     @Published var islandSize: DynamicIslandSize = .collapsed
+    var window: DynamicIslandPanel?
     private var clickMonitor: Any?
 
-    convenience init() {
-        let window = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 240, height: 30.5),
-            styleMask: [.borderless, .fullSizeContentView, .nonactivatingPanel],
+    override init() {
+        super.init()
+        
+        let panel = DynamicIslandPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 300, height: 30),
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
 
-        window.isMovableByWindowBackground = false 
-        window.backgroundColor = .clear
-        window.isOpaque = false
-        window.hasShadow = false
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.isFloatingPanel = true
-        window.level = .statusBar
+        panel.isMovable = false
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = false
+        panel.level = .statusBar
+        panel.hidesOnDeactivate = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
 
-        window.collectionBehavior = [
-            .canJoinAllSpaces,
-            .stationary,
-            .ignoresCycle
-        ]
-
-        self.init(window: window)
-
-        let contentView = NSHostingView(rootView: DynamicIslandView(size: Binding(get: { self.islandSize }, set: { self.islandSize = $0 }), onSizeChange: { [weak self] size in
+        let rootView = DynamicIslandView(size: Binding(get: { self.islandSize }, set: { [weak self] newSize in
+            self?.islandSize = newSize
+            self?.resizeWindow(for: newSize)
+        }), onSizeChange: { [weak self] size in
             self?.resizeWindow(for: size)
-        }))
+        })
+
+        let hostingView = NSHostingView(rootView: rootView)
+        hostingView.layer?.backgroundColor = .clear
+        hostingView.frame = NSRect(x: 0, y: 0, width: 300, height: 30)
+        panel.contentView = hostingView
         
-        contentView.translatesAutoresizingMaskIntoConstraints = true
-        window.contentView = contentView
-        
-        self.centerOnScreen(window)
+        self.window = panel
+        self.centerOnScreen(panel)
+        panel.orderFrontRegardless()
 
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             if let window = self?.window {
                 self?.centerOnScreen(window)
+                window.orderFrontRegardless()
             }
         }
     }
+
+    func showWindow(_ sender: Any?) {
+        window?.orderFrontRegardless()
+    }
     
+    func close() {
+        window?.orderOut(nil)
+    }
+
+    private func centerOnScreen(_ window: NSWindow) {
+        if let screen = NSScreen.main {
+            let screenFrame = screen.frame
+            let x = screenFrame.origin.x + (screenFrame.width - window.frame.width) / 2
+            let y = screenFrame.origin.y + screenFrame.height - window.frame.height
+            window.setFrameOrigin(NSPoint(x: x, y: y))
+        }
+    }
+
     private func resizeWindow(for size: DynamicIslandSize) {
         guard let window = window, let screen = NSScreen.main else { return }
         
@@ -123,7 +152,7 @@ class DynamicIslandWindowController: NSWindowController, ObservableObject {
         }
 
         let newWidth: CGFloat = (size == .collapsed) ? 240 : 420
-        let newHeight: CGFloat = (size == .collapsed) ? 30.5 : 179.5
+        let newHeight: CGFloat = (size == .collapsed) ? 32 : 179.5
         
         let screenFrame = screen.frame
         let x = screenFrame.origin.x + (screenFrame.width - newWidth) / 2
@@ -133,15 +162,15 @@ class DynamicIslandWindowController: NSWindowController, ObservableObject {
         let newFrame = NSRect(x: x, y: y, width: newWidth, height: newHeight)
         
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.3
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            context.duration = 0.15
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             window.animator().setFrame(newFrame, display: true)
         }
+        window.orderFrontRegardless()
     }
     
     private func handleOutsideClick() {
         guard islandSize == .expanded else { return }
-        
         DispatchQueue.main.async {
             withAnimation(.easeInOut(duration: 0.2)) {
                 self.islandSize = .collapsed
@@ -150,21 +179,11 @@ class DynamicIslandWindowController: NSWindowController, ObservableObject {
         }
     }
     
-    private func centerOnScreen(_ window: NSWindow) {
-        if let screen = NSScreen.main {
-            let screenFrame = screen.frame
-            let windowFrame = window.frame
-            let x = screenFrame.origin.x + (screenFrame.width - windowFrame.width) / 2
-            let y = screenFrame.origin.y + screenFrame.height - windowFrame.height
-            window.setFrameOrigin(NSPoint(x: x, y: y))
-        }
-    }
-    
     func toggle() {
         if window?.isVisible == true {
             window?.orderOut(nil)
         } else {
-            window?.makeKeyAndOrderFront(nil)
+            window?.orderFrontRegardless()
         }
     }
 }

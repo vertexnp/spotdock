@@ -18,6 +18,7 @@
 		C10000052F8780AB00000005 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000062F8780AB00000006 /* SettingsView.swift */; };
 		D10000012F8780AB00000001 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000022F8780AB00000002 /* ThemeManager.swift */; };
 		E10000012F8780AB00000001 /* DynamicIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000022F8780AB00000002 /* DynamicIslandView.swift */; };
+		F10000012F8780AB00000001 /* NowPlayingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000022F8780AB00000002 /* NowPlayingManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,6 +36,7 @@
 		C10000062F8780AB00000006 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		D10000022F8780AB00000002 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		E10000022F8780AB00000002 /* DynamicIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicIslandView.swift; sourceTree = "<group>"; };
+		F10000022F8780AB00000002 /* NowPlayingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +71,7 @@
 				B10000062F8780AB00000006 /* MiniPlayerWindow.swift */,
 				D10000022F8780AB00000002 /* ThemeManager.swift */,
 				E10000022F8780AB00000002 /* DynamicIslandView.swift */,
+				F10000022F8780AB00000002 /* NowPlayingManager.swift */,
 				A10000062F8780AB00000006 /* Assets.xcassets */,
 				A10000082F8780AB00000008 /* Info.plist */,
 				A10000092F8780AB00000009 /* Spotify.entitlements */,
@@ -163,6 +166,7 @@
 				B10000052F8780AB00000005 /* MiniPlayerWindow.swift in Sources */,
 				D10000012F8780AB00000001 /* ThemeManager.swift in Sources */,
 				E10000012F8780AB00000001 /* DynamicIslandView.swift in Sources */,
+				F10000012F8780AB00000001 /* NowPlayingManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -206,7 +210,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -268,7 +272,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;

@@ -34,6 +34,6 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>SpotDock needs permission to control Spotify to fetch current track information locally when the API is limited.</string>
+	<string>SpotDock needs permission to control Spotify and browsers (Brave, Chrome, Safari) to fetch current track information for Dynamic Island display.</string>
 </dict>
 </plist>

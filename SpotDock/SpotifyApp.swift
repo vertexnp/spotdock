@@ -14,32 +14,41 @@ class AppViewModel: ObservableObject {
     @Published var dynamicIslandController: DynamicIslandWindowController?
 
     init() {
+        // Register defaults to ensure components are on by default on first run
+        UserDefaults.standard.register(defaults: [
+            "showDynamicIsland": true,
+            "showMiniPlayer": true,
+            "useUniversalNowPlaying": true
+        ])
+
         // Start background polling in player
         SpotifyPlayer.shared.startPolling()
 
-        // Show layouts on launch if already authenticated
-        if SpotifyPlayer.shared.isAuthenticated {
-            DispatchQueue.main.async {
-                self.setupControllers()
-            }
+        // Initialize windows based on user preferences on launch
+        DispatchQueue.main.async {
+            self.setupControllers()
         }
     }
     
     func setupControllers() {
         // Handle Mini Player
-        if miniPlayerController == nil {
-            miniPlayerController = MiniPlayerWindowController()
+        if player.showMiniPlayer {
+            if miniPlayerController == nil {
+                miniPlayerController = MiniPlayerWindowController()
+            }
+            miniPlayerController?.showWindow(nil)
+        } else {
+            miniPlayerController?.close()
         }
-        miniPlayerController?.showWindow(nil)
         
         // Handle Dynamic Island
         if player.showDynamicIsland {
             if dynamicIslandController == nil {
                 dynamicIslandController = DynamicIslandWindowController()
             }
-            dynamicIslandController?.showWindow(nil)
+            dynamicIslandController?.window?.orderFrontRegardless()
         } else {
-            dynamicIslandController?.window?.orderOut(nil)
+            dynamicIslandController?.close()
         }
     }
 }
@@ -97,6 +106,9 @@ struct SpotDockApp: App {
         .onChange(of: viewModel.player.showDynamicIsland) { oldValue, newValue in
             viewModel.setupControllers()
         }
+        .onChange(of: viewModel.player.showMiniPlayer) { oldValue, newValue in
+            viewModel.setupControllers()
+        }
 
         Settings {
             SettingsView(miniPlayerController: $viewModel.miniPlayerController, dynamicIslandController: $viewModel.dynamicIslandController)
@@ -106,13 +118,95 @@ struct SpotDockApp: App {
 
 struct SpotDockMenuView: View {
     @ObservedObject var player = SpotifyPlayer.shared
+    @ObservedObject var universalPlayer = NowPlayingManager.shared
     @Binding var miniPlayerController: MiniPlayerWindowController?
     @Binding var dynamicIslandController: DynamicIslandWindowController?
     @StateObject private var themeManager = ThemeManager.shared
     @State private var isHovering = false
 
+    private var isSpotifySource: Bool {
+        universalPlayer.bundleID == "com.spotify.client"
+    }
+
+    private var isUniversalActive: Bool {
+        player.useUniversalNowPlaying && !universalPlayer.trackName.isEmpty && !player.isPlaying
+    }
+
+    private var currentTrackName: String {
+        isUniversalActive ? universalPlayer.trackName : player.trackName
+    }
+
+    private var currentArtistName: String {
+        isUniversalActive ? universalPlayer.artistName : player.artistName
+    }
+
+    private var currentIsPlaying: Bool {
+        isUniversalActive ? universalPlayer.isPlaying : player.isPlaying
+    }
+
+    private var currentProgress: Double {
+        isUniversalActive ? universalPlayer.progress : player.progress
+    }
+
+    private var currentDuration: Double {
+        isUniversalActive ? universalPlayer.duration : player.duration
+    }
+
+    private var currentAlbumArt: some View {
+        ZStack {
+            if isUniversalActive {
+                if let nsImage = universalPlayer.albumArt {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    placeholderArt(size: 40)
+                }
+            } else {
+                AsyncImage(url: URL(string: player.albumArtURL)) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    placeholderArt(size: 40)
+                }
+            }
+        }
+    }
+
+    private func placeholderArt(size: CGFloat) -> some View {
+        ZStack {
+            Color.gray.opacity(0.2)
+            Image(systemName: "music.note")
+                .font(.system(size: size))
+                .foregroundColor(.white.opacity(0.4))
+        }
+    }
+
     private var menuConfiguration: ThemeConfiguration {
         ThemeConfiguration.configuration(for: themeManager.currentTheme)
+    }
+
+    private func togglePlay() {
+        if isUniversalActive {
+            universalPlayer.togglePlay()
+        } else {
+            Task { await player.togglePlay() }
+        }
+    }
+
+    private func nextTrack() {
+        if isUniversalActive {
+            universalPlayer.nextTrack()
+        } else {
+            Task { await player.nextTrack() }
+        }
+    }
+
+    private func previousTrack() {
+        if isUniversalActive {
+            universalPlayer.previousTrack()
+        } else {
+            Task { await player.previousTrack() }
+        }
     }
 
     var body: some View {
@@ -120,7 +214,7 @@ struct SpotDockMenuView: View {
             if player.isLoading {
                 ProgressView()
                     .frame(height: 200)
-            } else if !player.isAuthenticated {
+            } else if !player.isAuthenticated && isSpotifySource {
                 loginView
             } else {
                 // Show player content, with error overlay if needed
@@ -135,7 +229,7 @@ struct SpotDockMenuView: View {
                     }
                 }
                 .overlay(
-                    player.error != nil ?
+                    player.error != nil && isSpotifySource ?
                     VStack {
                         Text("⚠️ \(player.error!)")
                             .foregroundColor(.white)
@@ -168,9 +262,11 @@ struct SpotDockMenuView: View {
         .background(Color.clear)
         .cornerRadius(themeManager.currentTheme == .fanFav ? 12 : 0)
         .onAppear {
-            Task { 
-                await player.fetchRecentlyPlayed()
-                await player.fetchQueue()
+            if isSpotifySource {
+                Task { 
+                    await player.fetchRecentlyPlayed()
+                    await player.fetchQueue()
+                }
             }
         }
     }
@@ -207,13 +303,7 @@ struct SpotDockMenuView: View {
     private var classicMenuView: some View {
         ZStack(alignment: .bottom) {
             // Album Art covering everything with 2px padding
-            AsyncImage(url: URL(string: player.albumArtURL)) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.2))
-                    .overlay(Image(systemName: "music.note").font(.largeTitle).foregroundColor(.gray))
-            }
+            currentAlbumArt
             .aspectRatio(1, contentMode: .fill)
             .frame(width: 264, height: 264)
             .clipped()
@@ -228,12 +318,12 @@ struct SpotDockMenuView: View {
                     VStack(spacing: 12) {
                         // Track Info
                         VStack(spacing: 2) {
-                            Text(player.trackName)
+                            Text(currentTrackName)
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                                 .lineLimit(1)
                                 .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                            Text(player.artistName)
+                            Text(currentArtistName)
                                 .font(.system(size: 12))
                                 .foregroundColor(.white.opacity(0.9))
                                 .lineLimit(1)
@@ -242,41 +332,58 @@ struct SpotDockMenuView: View {
                         .padding(.top, 45) // Increased padding by 5px to extend gradient higher
 
                         // Progress
-                        progressBar(color: .green, bgColor: Color.white.opacity(0.2))
-                            .padding(.horizontal, 16)
-                            .frame(height: 4)
+                        if !isUniversalActive {
+                            progressBar(color: .green, bgColor: Color.white.opacity(0.2))
+                                .padding(.horizontal, 16)
+                                .frame(height: 4)
+                        }
 
                         // Playback Controls
-                        HStack(spacing: 16) {
-                            // Shuffle
-                            Button(action: { Task { await player.toggleShuffle() } }) {
-                                Image(systemName: "shuffle")
-                                    .font(.system(size: 14, weight: player.isShuffled ? .bold : .medium))
-                                    .foregroundColor(player.isShuffled ? .green : .white.opacity(0.7))
+                        if !isUniversalActive {
+                            HStack(spacing: 16) {
+                                // Shuffle
+                                if isSpotifySource {
+                                    Button(action: { Task { await player.toggleShuffle() } }) {
+                                        Image(systemName: "shuffle")
+                                            .font(.system(size: 14, weight: player.isShuffled ? .bold : .medium))
+                                            .foregroundColor(player.isShuffled ? .green : .white.opacity(0.7))
+                                    }
+                                    .buttonStyle(.plain)
+                                } else {
+                                    Spacer().frame(width: 14)
+                                }
+
+                                controlButton(icon: "backward.end.fill", size: 16) { previousTrack() }
+
+                                Button(action: { togglePlay() }) {
+                                    Image(systemName: currentIsPlaying ? "pause.fill" : "play.fill")
+                                        .font(.system(size: 24, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .frame(width: 44, height: 44)
+                                }
+                                .buttonStyle(.plain)
+
+                                controlButton(icon: "forward.end.fill", size: 16) { nextTrack() }
+
+                                // Repeat
+                                if isSpotifySource {
+                                    Button(action: { Task { await player.cycleRepeat() } }) {
+                                        Image(systemName: player.repeatMode == "track" ? "repeat.1" : "repeat")
+                                            .font(.system(size: 14, weight: player.repeatMode != "off" ? .bold : .medium))
+                                            .foregroundColor(player.repeatMode != "off" ? .green : .white.opacity(0.7))
+                                    }
+                                    .buttonStyle(.plain)
+                                } else {
+                                    Spacer().frame(width: 14)
+                                }
                             }
-                            .buttonStyle(.plain)
-
-                            controlButton(icon: "backward.end.fill", size: 16) { await player.previousTrack() }
-
-                            Button(action: { Task { await player.togglePlay() } }) {
-                                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(width: 44, height: 44)
-                            }
-                            .buttonStyle(.plain)
-
-                            controlButton(icon: "forward.end.fill", size: 16) { await player.nextTrack() }
-
-                            // Repeat
-                            Button(action: { Task { await player.cycleRepeat() } }) {
-                                Image(systemName: player.repeatMode == "track" ? "repeat.1" : "repeat")
-                                    .font(.system(size: 14, weight: player.repeatMode != "off" ? .bold : .medium))
-                                    .foregroundColor(player.repeatMode != "off" ? .green : .white.opacity(0.7))
-                            }
-                            .buttonStyle(.plain)
+                            .padding(.bottom, 12)
+                        } else {
+                            Text("Browser Playback")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.white.opacity(0.4))
+                                .padding(.bottom, 20)
                         }
-                        .padding(.bottom, 12)
                     }
                     .background(
                         LinearGradient(
@@ -290,10 +397,11 @@ struct SpotDockMenuView: View {
                             endPoint: .bottom
                         )
                     )
-                    }
-                    .transition(.opacity)
-                    }
-                    }        .frame(width: 264, height: 264)
+                }
+                .transition(.opacity)
+            }
+        }
+        .frame(width: 264, height: 264)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.2)) {
                 isHovering = hovering
@@ -305,25 +413,19 @@ struct SpotDockMenuView: View {
             // Top section: Album art left, track info + visualizer right
             HStack(spacing: 16) {
                 // Album Art
-                AsyncImage(url: URL(string: player.albumArtURL)) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(white: 0.15))
-                        .overlay(Image(systemName: "music.note").font(.system(size: 24)).foregroundColor(.gray.opacity(0.5)))
-                }
+                currentAlbumArt
                 .frame(width: 100, height: 100)
                 .cornerRadius(12)
                 .clipped()
 
                 // Right side: Track info + visualizer
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(player.trackName)
+                    Text(currentTrackName)
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
                         .lineLimit(1)
 
-                    Text(player.artistName)
+                    Text(currentArtistName)
                         .font(.system(size: 14, weight: .regular))
                         .foregroundColor(.white.opacity(0.6))
                         .lineLimit(1)
@@ -337,34 +439,45 @@ struct SpotDockMenuView: View {
             }
 
             // Controls - Square buttons with rounded corners
-            HStack(spacing: 12) {
-                // Shuffle
-                Button(action: { Task { await player.toggleShuffle() } }) {
-                    Image(systemName: "shuffle")
-                        .font(.system(size: 16, weight: player.isShuffled ? .bold : .semibold))
-                        .foregroundColor(player.isShuffled ? .green : .white.opacity(0.7))
-                        .frame(width: 40, height: 40)
-                        .background(Color(white: 0.18))
-                        .cornerRadius(10)
+            if !isUniversalActive {
+                HStack(spacing: 12) {
+                    // Shuffle
+                    if isSpotifySource {
+                        Button(action: { Task { await player.toggleShuffle() } }) {
+                            Image(systemName: "shuffle")
+                                .font(.system(size: 16, weight: player.isShuffled ? .bold : .semibold))
+                                .foregroundColor(player.isShuffled ? .green : .white.opacity(0.7))
+                                .frame(width: 40, height: 40)
+                                .background(Color(white: 0.18))
+                                .cornerRadius(10)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    minimalSquareButton(icon: "backward.fill", size: 48) { previousTrack() }
+
+                    minimalSquareButton(icon: currentIsPlaying ? "pause.fill" : "play.fill", size: 56) { togglePlay() }
+
+                    minimalSquareButton(icon: "forward.fill", size: 48) { nextTrack() }
+
+                    // Repeat
+                    if isSpotifySource {
+                        Button(action: { Task { await player.cycleRepeat() } }) {
+                            Image(systemName: player.repeatMode == "track" ? "repeat.1" : "repeat")
+                                .font(.system(size: 16, weight: player.repeatMode != "off" ? .bold : .semibold))
+                                .foregroundColor(player.repeatMode != "off" ? .green : .white.opacity(0.7))
+                                .frame(width: 40, height: 40)
+                                .background(Color(white: 0.18))
+                                .cornerRadius(10)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .buttonStyle(.plain)
-
-                minimalSquareButton(icon: "backward.fill", size: 48) { await player.previousTrack() }
-
-                minimalSquareButton(icon: player.isPlaying ? "pause.fill" : "play.fill", size: 56) { await player.togglePlay() }
-
-                minimalSquareButton(icon: "forward.fill", size: 48) { await player.nextTrack() }
-
-                // Repeat
-                Button(action: { Task { await player.cycleRepeat() } }) {
-                    Image(systemName: player.repeatMode == "track" ? "repeat.1" : "repeat")
-                        .font(.system(size: 16, weight: player.repeatMode != "off" ? .bold : .semibold))
-                        .foregroundColor(player.repeatMode != "off" ? .green : .white.opacity(0.7))
-                        .frame(width: 40, height: 40)
-                        .background(Color(white: 0.18))
-                        .cornerRadius(10)
-                }
-                .buttonStyle(.plain)
+            } else {
+                Text("Browser Playback")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.white.opacity(0.4))
+                    .padding(.top, 10)
             }
         }
         .padding()
@@ -376,10 +489,10 @@ struct SpotDockMenuView: View {
                 HStack(spacing: 2) {
                     ForEach(0..<32) { i in
                         let phase = Double(i) * 0.6 + context.date.timeIntervalSinceReferenceDate * 4
-                        let barHeight = player.isPlaying
+                        let barHeight = currentIsPlaying
                             ? CGFloat(6 + sin(phase) * 6 + 10)
                             : CGFloat(3)
-                        let opacity = player.isPlaying
+                        let opacity = currentIsPlaying
                             ? 0.3 + sin(phase + Double(i) * 0.3) * 0.3
                             : 0.15
                         Rectangle()
@@ -398,16 +511,17 @@ struct SpotDockMenuView: View {
                             .cornerRadius(1.5)
                     }
                 }
-                .frame(width: geo.size.width, height: player.isPlaying ? 28 : 3)
-                .animation(.easeInOut(duration: 0.4), value: player.isPlaying)
+                .frame(width: geo.size.width, height: currentIsPlaying ? 28 : 3)
+                .animation(.easeInOut(duration: 0.4), value: currentIsPlaying)
             }
         }
-        .frame(height: player.isPlaying ? 28 : 3)
+        .frame(height: currentIsPlaying ? 28 : 3)
         .clipped()
     }
 
     private var audioWaveform: some View {
-        TimelineView(.animation(minimumInterval: 0.04)) { (timeline: TimelineViewDefaultContext) -> AnyView in
+        // Reduced frequency from 0.04 (25fps) to 0.1 (10fps)
+        TimelineView(.animation(minimumInterval: 0.1)) { (timeline: TimelineViewDefaultContext) -> AnyView in
             AnyView(
                 Canvas { context, size in
                     let t = timeline.date.timeIntervalSinceReferenceDate
@@ -415,7 +529,8 @@ struct SpotDockMenuView: View {
                     let height = size.height
                     
                     let rows = 8
-                    let cols = 80
+                    // Reduced from 80 to 40 columns (half the dots, half the calculations)
+                    let cols = 40
                     let spacingX = width / CGFloat(cols)
                     
                     for row in 0..<rows {
@@ -424,7 +539,10 @@ struct SpotDockMenuView: View {
                         
                         // Vibrant purple/magenta color inspired by the user's image
                         let baseColor = Color(red: 0.75, green: 0.15, blue: 0.95)
-                        let opacity = (0.2 + (1.0 - rowProgress) * 0.8) * (player.isPlaying ? 1.0 : 0.25)
+                        let opacity = (0.2 + (1.0 - rowProgress) * 0.8) * (currentIsPlaying ? 1.0 : 0.25)
+                        
+                        // Skip expensive loops if not playing and menu is likely in background
+                        if !currentIsPlaying && rowProgress > 0.3 { continue }
                         
                         for col in 0...cols {
                             let xProgress = Double(col) / Double(cols)
@@ -440,37 +558,29 @@ struct SpotDockMenuView: View {
                             let edgeDamping = 1.0 - pow(abs(xProgress - 0.5) * 2.0, 2.0)
                             amplitude *= edgeDamping
                             
-                            amplitude *= (player.isPlaying ? 1.0 : 0.08)
+                            amplitude *= (currentIsPlaying ? 1.0 : 0.08)
                             
                             // Vertical position with perspective-like row shift
                             let y = (height * 0.5) + (CGFloat(amplitude) * height * 0.45) + (rowProgress * 12 - 6)
                             
-                            let dotSize: CGFloat = 1.4 - (rowProgress * 0.4)
+                            let dotSize: CGFloat = 1.6 - (rowProgress * 0.4)
                             
                             // Draw the main point
                             context.fill(
                                 Path(ellipseIn: CGRect(x: x - dotSize/2, y: y - dotSize/2, width: dotSize, height: dotSize)),
                                 with: .color(baseColor.opacity(opacity))
                             )
-                            
-                            // Add vertical "shadow" points for texture depth
-                            if player.isPlaying && row % 2 == 0 {
-                                context.fill(
-                                    Path(ellipseIn: CGRect(x: x - dotSize/2, y: y + 1.5 - dotSize/2, width: dotSize, height: dotSize)),
-                                    with: .color(baseColor.opacity(opacity * 0.4))
-                                )
-                            }
                         }
                     }
                 }
             )
         }
         .frame(height: 50)
-        .animation(.easeInOut(duration: 0.4), value: player.isPlaying)
+        .animation(.easeInOut(duration: 0.4), value: currentIsPlaying)
     }
 
-    private func minimalSquareButton(icon: String, size: CGFloat, action: @escaping () async -> Void) -> some View {
-        Button(action: { Task { await action() } }) {
+    private func minimalSquareButton(icon: String, size: CGFloat, action: @escaping () -> Void) -> some View {
+        Button(action: { action() }) {
             Image(systemName: icon)
                 .font(.system(size: size * 0.35, weight: .semibold))
                 .foregroundColor(.white.opacity(0.9))
@@ -518,19 +628,14 @@ struct SpotDockMenuView: View {
                             .rotationEffect(.degrees(vinylRotationAngle))
 
                         // Album art center
-                        AsyncImage(url: URL(string: player.albumArtURL)) { image in
-                            image.resizable().scaledToFill()
-                        } placeholder: {
-                            Circle().fill(Color(white: 0.15))
-                                .overlay(Image(systemName: "music.note").font(.system(size: 16)).foregroundColor(.gray))
-                        }
+                        currentAlbumArt
                         .frame(width: 44, height: 44)
                         .clipShape(Circle())
 
                         Circle().fill(Color(white: 0.05)).frame(width: 5, height: 5)
                     }
                     .onChange(of: context.date) { _, _ in
-                        if player.isPlaying {
+                        if currentIsPlaying {
                             vinylRotationAngle += 1.5
                             if vinylRotationAngle >= 360 {
                                 vinylRotationAngle -= 360
@@ -540,73 +645,81 @@ struct SpotDockMenuView: View {
 
                     // Track info
                     VStack(spacing: 3) {
-                        Text(player.trackName)
+                        Text(currentTrackName)
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(.white)
                             .lineLimit(1)
-                        Text(player.artistName)
+                        Text(currentArtistName)
                             .font(.system(size: 12))
                             .foregroundColor(.white.opacity(0.6))
                             .lineLimit(1)
                     }
 
                     // Progress bar
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Rectangle().fill(Color.white.opacity(0.15)).frame(height: 3).clipShape(Capsule())
-                            Rectangle().fill(Color.white.opacity(0.6))
-                                .frame(width: player.duration > 0 ? geo.size.width * CGFloat(player.progress / player.duration) : 0, height: 3)
-                                .clipShape(Capsule())
-                        }
+                    if !isUniversalActive {
+                        progressBar(color: .white.opacity(0.6), bgColor: Color.white.opacity(0.15))
+                            .frame(height: 3)
                     }
-                    .frame(height: 3)
 
                     // Controls
-                    HStack(spacing: 16) {
-                        // Shuffle
-                        Button(action: { Task { await player.toggleShuffle() } }) {
-                            Image(systemName: "shuffle")
-                                .font(.system(size: 12, weight: player.isShuffled ? .bold : .medium))
-                                .foregroundColor(player.isShuffled ? Color(red: 0.9, green: 1.0, blue: 0.7) : .white.opacity(0.5))
-                        }
-                        .buttonStyle(.plain)
+                    if !isUniversalActive {
+                        HStack(spacing: 16) {
+                            // Shuffle
+                            if isSpotifySource {
+                                Button(action: { Task { await player.toggleShuffle() } }) {
+                                    Image(systemName: "shuffle")
+                                        .font(.system(size: 12, weight: player.isShuffled ? .bold : .medium))
+                                        .foregroundColor(player.isShuffled ? Color(red: 0.9, green: 1.0, blue: 0.7) : .white.opacity(0.5))
+                                }
+                                .buttonStyle(.plain)
+                            }
 
-                        Button(action: { Task { await player.previousTrack() } }) {
-                            Image(systemName: "backward.fill")
-                                .font(.system(size: 14))
-                                .foregroundColor(.white.opacity(0.7))
-                        }
-                        .buttonStyle(.plain)
+                            Button(action: { previousTrack() }) {
+                                Image(systemName: "backward.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                            .buttonStyle(.plain)
 
-                        Button(action: { Task { await player.togglePlay() } }) {
-                            Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(width: 40, height: 40)
-                                .background(Circle().fill(Color(white: 0.1)))
-                        }
-                        .buttonStyle(.plain)
+                            Button(action: { togglePlay() }) {
+                                Image(systemName: currentIsPlaying ? "pause.fill" : "play.fill")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 40, height: 40)
+                                    .background(Circle().fill(Color(white: 0.1)))
+                            }
+                            .buttonStyle(.plain)
 
-                        Button(action: { Task { await player.nextTrack() } }) {
-                            Image(systemName: "forward.fill")
-                                .font(.system(size: 14))
-                                .foregroundColor(.white.opacity(0.7))
-                        }
-                        .buttonStyle(.plain)
+                            Button(action: { nextTrack() }) {
+                                Image(systemName: "forward.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                            .buttonStyle(.plain)
 
-                        // Repeat
-                        Button(action: { Task { await player.cycleRepeat() } }) {
-                            Image(systemName: player.repeatMode == "track" ? "repeat.1" : "repeat")
-                                .font(.system(size: 12, weight: player.repeatMode != "off" ? .bold : .medium))
-                                .foregroundColor(player.repeatMode != "off" ? Color(red: 0.9, green: 1.0, blue: 0.7) : .white.opacity(0.5))
+                            // Repeat
+                            if isSpotifySource {
+                                Button(action: { Task { await player.cycleRepeat() } }) {
+                                    Image(systemName: player.repeatMode == "track" ? "repeat.1" : "repeat")
+                                        .font(.system(size: 12, weight: player.repeatMode != "off" ? .bold : .medium))
+                                        .foregroundColor(player.repeatMode != "off" ? Color(red: 0.9, green: 1.0, blue: 0.7) : .white.opacity(0.5))
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
-                        .buttonStyle(.plain)
+                    } else {
+                        Text("Browser Playback")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white.opacity(0.4))
+                            .padding(.top, 4)
                     }
                 }
                 .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
-                    Task {
-                        await player.fetchRecentlyPlayed()
-                        await player.fetchQueue()
+                    if isSpotifySource {
+                        Task {
+                            await player.fetchRecentlyPlayed()
+                            await player.fetchQueue()
+                        }
                     }
                 }
                 .padding(.horizontal)
@@ -616,7 +729,7 @@ struct SpotDockMenuView: View {
                 .cornerRadius(16)
 
                 // Queue / Next Up - positioned at bottom of ZStack
-                if !player.queue.isEmpty {
+                if isSpotifySource && !player.queue.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             ForEach(player.queue) { track in
@@ -649,14 +762,14 @@ struct SpotDockMenuView: View {
                     .frame(height: 4)
                 Rectangle()
                     .fill(color)
-                    .frame(width: player.duration > 0 ? geo.size.width * CGFloat(player.progress / player.duration) : 0, height: 4)
+                    .frame(width: currentDuration > 0 ? geo.size.width * CGFloat(currentProgress / currentDuration) : 0, height: 4)
             }
         }
         .frame(height: 4)
     }
     
-    private func controlButton(icon: String, size: CGFloat, action: @escaping () async -> Void) -> some View {
-        Button(action: { Task { await action() } }) {
+    private func controlButton(icon: String, size: CGFloat, action: @escaping () -> Void) -> some View {
+        Button(action: { action() }) {
             Image(systemName: icon)
                 .font(.system(size: size, weight: .bold))
                 .foregroundColor(.white)
