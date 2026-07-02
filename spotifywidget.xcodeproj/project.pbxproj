@@ -14,7 +14,6 @@
 		B10000032F8780AB00000003 /* MiniPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000042F8780AB00000004 /* MiniPlayerView.swift */; };
 		B10000052F8780AB00000005 /* MiniPlayerWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000062F8780AB00000006 /* MiniPlayerWindow.swift */; };
 		C10000012F8780AB00000001 /* EnvironmentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000022F8780AB00000002 /* EnvironmentManager.swift */; };
-		C10000032F8780AB00000003 /* .env in Resources */ = {isa = PBXBuildFile; fileRef = C10000042F8780AB00000004 /* .env */; };
 		C10000052F8780AB00000005 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000062F8780AB00000006 /* SettingsView.swift */; };
 		D10000012F8780AB00000001 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000022F8780AB00000002 /* ThemeManager.swift */; };
 		E10000012F8780AB00000001 /* DynamicIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000022F8780AB00000002 /* DynamicIslandView.swift */; };
@@ -34,7 +33,6 @@
 		B10000042F8780AB00000004 /* MiniPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerView.swift; sourceTree = "<group>"; };
 		B10000062F8780AB00000006 /* MiniPlayerWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerWindow.swift; sourceTree = "<group>"; };
 		C10000022F8780AB00000002 /* EnvironmentManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentManager.swift; sourceTree = "<group>"; };
-		C10000042F8780AB00000004 /* .env */ = {isa = PBXFileReference; lastKnownFileType = text; name = .env; path = ../.env; sourceTree = "<group>"; };
 		C10000062F8780AB00000006 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		D10000022F8780AB00000002 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		E10000022F8780AB00000002 /* DynamicIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicIslandView.swift; sourceTree = "<group>"; };
@@ -65,7 +63,6 @@
 		A100000C2F8780AB0000000C /* SpotDock */ = {
 			isa = PBXGroup;
 			children = (
-				C10000042F8780AB00000004 /* .env */,
 				C10000022F8780AB00000002 /* EnvironmentManager.swift */,
 				C10000062F8780AB00000006 /* SettingsView.swift */,
 				A10000022F8780AB00000002 /* SpotifyApp.swift */,
@@ -151,7 +148,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C10000032F8780AB00000003 /* .env in Resources */,
 				A10000052F8780AB00000005 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
