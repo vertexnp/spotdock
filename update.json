@@ -1,0 +1,5 @@
+{
+  "version": "1.0.0",
+  "downloadUrl": "https://github.com/vertexnp/spotdock/releases/latest/download/SpotDock.zip",
+  "releaseNotes": "Initial release with fixed Chrome/Brave fallback playback, and lightweight automatic updates."
+}
