@@ -18,6 +18,7 @@
 		<string>com.brave.Browser</string>
 		<string>com.google.Chrome</string>
 		<string>com.apple.Safari</string>
+		<string>org.mozilla.firefox</string>
 		<string>com.apple.mediaremoted</string>
 	</array>
 	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>

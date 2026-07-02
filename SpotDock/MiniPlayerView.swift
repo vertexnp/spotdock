@@ -12,10 +12,21 @@ enum ViewMode {
 
 struct MiniPlayerView: View {
     @ObservedObject var player = SpotifyPlayer.shared
+    @ObservedObject var universalPlayer = NowPlayingManager.shared
     @State private var localVolume: Double = 50
     @State private var rotationAngle: Double = 0
 
     private let themeManager = ThemeManager.shared
+
+    private var isUniversalActive: Bool {
+        player.useUniversalNowPlaying && !universalPlayer.trackName.isEmpty && !player.isPlaying
+    }
+
+    private var currentTrackName: String { isUniversalActive ? universalPlayer.trackName : player.trackName }
+    private var currentArtistName: String { isUniversalActive ? universalPlayer.artistName : player.artistName }
+    private var currentIsPlaying: Bool { isUniversalActive ? universalPlayer.isPlaying : player.isPlaying }
+    private var currentProgress: Double { isUniversalActive ? universalPlayer.progress : player.progress }
+    private var currentDuration: Double { isUniversalActive ? universalPlayer.duration : player.duration }
 
     // macOS 15 Widget Style Corner Radius
     private var themeConfiguration: ThemeConfiguration {
@@ -89,6 +100,21 @@ struct MiniPlayerView: View {
         }
     }
 
+    private func togglePlay() {
+        if isUniversalActive { universalPlayer.togglePlay() }
+        else { Task { await player.togglePlay() } }
+    }
+
+    private func nextTrack() {
+        if isUniversalActive { universalPlayer.nextTrack() }
+        else { Task { await player.nextTrack() } }
+    }
+
+    private func previousTrack() {
+        if isUniversalActive { universalPlayer.previousTrack() }
+        else { Task { await player.previousTrack() } }
+    }
+
     private var minimalPlayerModeView: some View {
         HStack(spacing: 20) {
             // Left section - Album art, track info, progress
@@ -99,12 +125,12 @@ struct MiniPlayerView: View {
                 
                 // Track info
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(player.artistName)
+                    Text(currentArtistName)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.white.opacity(0.6))
                         .lineLimit(1)
                     
-                    Text(player.trackName)
+                    Text(currentTrackName)
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.white)
                         .lineLimit(1)
@@ -122,21 +148,21 @@ struct MiniPlayerView: View {
                             
                             Rectangle()
                                 .fill(.white)
-                                .frame(width: player.duration > 0 ? geo.size.width * CGFloat(player.progress / player.duration) : 0, height: 4)
+                                .frame(width: currentDuration > 0 ? geo.size.width * CGFloat(currentProgress / currentDuration) : 0, height: 4)
                                 .clipShape(Capsule())
                         }
                     }
                     .frame(height: 4)
                     
                     HStack {
-                        Text(formatTime(player.progress))
+                        Text(formatTime(currentProgress))
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.white.opacity(0.5))
                             .monospacedDigit()
                         
                         Spacer()
                         
-                        Text(formatTime(player.duration))
+                        Text(formatTime(currentDuration))
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.white.opacity(0.5))
                             .monospacedDigit()
@@ -163,10 +189,12 @@ struct MiniPlayerView: View {
                             .cornerRadius(12)
                     }
                     .buttonStyle(.plain)
+                    .disabled(isUniversalActive)
+                    .opacity(isUniversalActive ? 0.3 : 1.0)
                     
                     // Play/Pause
-                    Button(action: { Task { await player.togglePlay() } }) {
-                        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                    Button(action: { togglePlay() }) {
+                        Image(systemName: currentIsPlaying ? "pause.fill" : "play.fill")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundColor(.white.opacity(0.9))
                             .frame(width: 56, height: 56)
@@ -178,7 +206,7 @@ struct MiniPlayerView: View {
                 
                 // Bottom row - Prev, Next
                 HStack(spacing: 12) {
-                    Button(action: { Task { await player.previousTrack() } }) {
+                    Button(action: { previousTrack() }) {
                         Image(systemName: "backward.fill")
                             .font(.system(size: 20))
                             .foregroundColor(.white.opacity(0.7))
@@ -188,7 +216,7 @@ struct MiniPlayerView: View {
                     }
                     .buttonStyle(.plain)
                     
-                    Button(action: { Task { await player.nextTrack() } }) {
+                    Button(action: { nextTrack() }) {
                         Image(systemName: "forward.fill")
                             .font(.system(size: 20))
                             .foregroundColor(.white.opacity(0.7))
@@ -205,7 +233,7 @@ struct MiniPlayerView: View {
 
     // Tone arm angle: rest position when paused, moves over record when playing
     private var toneArmAngle: Double {
-        player.isPlaying ? 155 : 110
+        currentIsPlaying ? 155 : 110
     }
 
     private var fanFavPlayerModeView: some View {
@@ -214,11 +242,11 @@ struct MiniPlayerView: View {
             HStack(alignment: .bottom, spacing: 0) {
                 // Timer (left)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(formatTime(player.progress))
+                    Text(formatTime(currentProgress))
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.white)
                         .monospacedDigit()
-                    Text("-" + formatTime(max(0, player.duration - player.progress)))
+                    Text("-" + formatTime(max(0, currentDuration - currentProgress)))
                         .font(.system(size: 9, weight: .medium))
                         .foregroundColor(.white.opacity(0.4))
                         .monospacedDigit()
@@ -248,6 +276,8 @@ struct MiniPlayerView: View {
                 .buttonStyle(.plain)
                 .frame(width: 60, alignment: .trailing)
                 .padding(.bottom, 8)
+                .disabled(isUniversalActive)
+                .opacity(isUniversalActive ? 0.3 : 1.0)
             }
             .frame(height: 140)
             .padding(.horizontal, 10)
@@ -260,12 +290,12 @@ struct MiniPlayerView: View {
 
             // Track Information (centered)
             VStack(spacing: 4) {
-                Text(player.trackName)
+                Text(currentTrackName)
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(.white)
                     .lineLimit(1)
 
-                Text(player.artistName)
+                Text(currentArtistName)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.white.opacity(0.5))
                     .lineLimit(1)
@@ -274,8 +304,10 @@ struct MiniPlayerView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                player.showLyrics.toggle()
+            if !isUniversalActive {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    player.showLyrics.toggle()
+                }
             }
         }
     }
@@ -288,7 +320,7 @@ struct MiniPlayerView: View {
             }
             .frame(width: 135, height: 135)
             .onChange(of: context.date) { _, _ in
-                if player.isPlaying {
+                if currentIsPlaying {
                     rotationAngle += 1.5 // Speed of rotation
                     if rotationAngle >= 360 {
                         rotationAngle -= 360
@@ -354,27 +386,39 @@ struct MiniPlayerView: View {
     }
 
     private var albumArtCircle: some View {
-        AsyncImage(url: URL(string: player.albumArtURL)) { image in
-            image.resizable().scaledToFill()
-        } placeholder: {
-            Circle()
-                .fill(Color(white: 0.15))
-                .overlay(Image(systemName: "music.note").font(.system(size: 14)).foregroundColor(.gray.opacity(0.3)))
+        ZStack {
+            if isUniversalActive {
+                if let nsImage = universalPlayer.albumArt {
+                    Image(nsImage: nsImage).resizable().scaledToFill()
+                } else { placeholderCircleArt }
+            } else {
+                AsyncImage(url: URL(string: player.albumArtURL)) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    placeholderCircleArt
+                }
+            }
         }
         .frame(width: 46, height: 46)
         .clipShape(Circle())
     }
 
+    private var placeholderCircleArt: some View {
+        Circle()
+            .fill(Color(white: 0.15))
+            .overlay(Image(systemName: "music.note").font(.system(size: 14)).foregroundColor(.gray.opacity(0.3)))
+    }
+
     private var controlsButtons: some View {
         HStack(spacing: 12) {
-            controlButton(icon: "backward.fill", size: 13) { await player.previousTrack() }
-            controlButton(icon: player.isPlaying ? "pause.fill" : "play.fill", size: 18) { await player.togglePlay() }
-            controlButton(icon: "forward.fill", size: 13) { await player.nextTrack() }
+            controlButton(icon: "backward.fill", size: 13) { previousTrack() }
+            controlButton(icon: currentIsPlaying ? "pause.fill" : "play.fill", size: 18) { togglePlay() }
+            controlButton(icon: "forward.fill", size: 13) { nextTrack() }
         }
     }
 
-    private func controlButton(icon: String, size: CGFloat, action: @escaping () async -> Void) -> some View {
-        Button(action: { Task { await action() } }) {
+    private func controlButton(icon: String, size: CGFloat, action: @escaping () -> Void) -> some View {
+        Button(action: { action() }) {
             Image(systemName: icon)
                 .font(.system(size: size, weight: .medium))
                 .foregroundColor(.white.opacity(0.8))
@@ -427,12 +471,7 @@ struct MiniPlayerView: View {
     private var defaultPlayerModeView: some View {
         HStack(spacing: 0) {
             // LEFT SIDE: 60% - Full-height album art
-            AsyncImage(url: URL(string: player.albumArtURL)) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Color.gray.opacity(0.3)
-                    .overlay(Image(systemName: "music.note").font(.system(size: 40)).foregroundColor(.gray))
-            }
+            albumArt(size: 250) // albumArt function handles isUniversalActive
             .frame(maxWidth: .infinity * 0.67, maxHeight: .infinity) // 40% left
             .clipped()
             
@@ -440,7 +479,7 @@ struct MiniPlayerView: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Row 1: Song name | Lyrics toggle
                 HStack {
-                    Text(player.trackName)
+                    Text(currentTrackName)
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
                         .lineLimit(1)
@@ -448,8 +487,10 @@ struct MiniPlayerView: View {
                     Spacer()
                     
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            player.showLyrics.toggle()
+                        if !isUniversalActive {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                player.showLyrics.toggle()
+                            }
                         }
                     }) {
                         Image(systemName: "music.note")
@@ -457,12 +498,14 @@ struct MiniPlayerView: View {
                             .foregroundColor(.white.opacity(0.7))
                     }
                     .buttonStyle(.plain)
+                    .disabled(isUniversalActive)
+                    .opacity(isUniversalActive ? 0.3 : 1.0)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
                 
                 // Row 2: Artist name
-                Text(player.artistName)
+                Text(currentArtistName)
                     .font(.system(size: 14, weight: .regular))
                     .foregroundColor(.white.opacity(0.65))
                     .lineLimit(1)
@@ -474,7 +517,7 @@ struct MiniPlayerView: View {
                 
                 // Row 4: Timestamp + Progress bar
                 HStack(spacing: 8) {
-                    Text(formatTime(player.progress))
+                    Text(formatTime(currentProgress))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.white.opacity(0.5))
                         .monospacedDigit()
@@ -488,12 +531,12 @@ struct MiniPlayerView: View {
                             
                             Rectangle()
                                 .fill(Color.white.opacity(0.7))
-                                .frame(width: player.duration > 0 ? geo.size.width * CGFloat(player.progress / player.duration) : 0, height: 3)
+                                .frame(width: currentDuration > 0 ? geo.size.width * CGFloat(currentProgress / currentDuration) : 0, height: 3)
                                 .clipShape(Capsule())
                         }
                     }
                     
-                    Text(formatTime(player.duration))
+                    Text(formatTime(currentDuration))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.white.opacity(0.5))
                         .monospacedDigit()
@@ -505,15 +548,15 @@ struct MiniPlayerView: View {
                 HStack(spacing: 20) {
                     Spacer()
                     
-                    Button(action: { Task { await player.previousTrack() } }) {
+                    Button(action: { previousTrack() }) {
                         Image(systemName: "backward.fill")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.white.opacity(0.8))
                     }
                     .buttonStyle(.plain)
                     
-                    Button(action: { Task { await player.togglePlay() } }) {
-                        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                    Button(action: { togglePlay() }) {
+                        Image(systemName: currentIsPlaying ? "pause.fill" : "play.fill")
                             .font(.system(size: 22, weight: .bold))
                             .foregroundColor(.white)
                             .frame(width: 42, height: 42)
@@ -522,7 +565,7 @@ struct MiniPlayerView: View {
                     }
                     .buttonStyle(.plain)
                     
-                    Button(action: { Task { await player.nextTrack() } }) {
+                    Button(action: { nextTrack() }) {
                         Image(systemName: "forward.fill")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.white.opacity(0.8))
@@ -780,7 +823,17 @@ struct MiniPlayerView: View {
 
     private func albumArt(size: CGFloat) -> some View {
         ZStack {
-            if !player.albumArtURL.isEmpty {
+            if isUniversalActive {
+                if let nsImage = universalPlayer.albumArt {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: size, height: size)
+                        .cornerRadius(themeConfiguration.albumArtCornerRadius)
+                } else {
+                    placeholderArt(size: size * 0.3)
+                }
+            } else if !player.albumArtURL.isEmpty {
                 AsyncImage(url: URL(string: player.albumArtURL)) { image in
                     image
                         .resizable()

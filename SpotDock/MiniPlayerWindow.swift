@@ -72,6 +72,23 @@ class DynamicIslandPanel: NSPanel {
     }
 }
 
+// Custom HostingView that allows clicks to pass through its transparent areas
+class PassthroughHostingView<Content: View>: NSHostingView<Content> {
+    var onHitTest: ((NSPoint) -> Bool)?
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let view = super.hitTest(point)
+        if view == self {
+            // Only return self if the point is within our interactive area
+            if let onHitTest = onHitTest, onHitTest(point) {
+                return self
+            }
+            return nil
+        }
+        return view
+    }
+}
+
 @MainActor
 class DynamicIslandWindowController: NSObject, ObservableObject {
     @Published var islandSize: DynamicIslandSize = .collapsed
@@ -80,9 +97,9 @@ class DynamicIslandWindowController: NSObject, ObservableObject {
 
     override init() {
         super.init()
-        
+
         let panel = DynamicIslandPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 30),
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 300),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -98,19 +115,38 @@ class DynamicIslandWindowController: NSObject, ObservableObject {
 
         let rootView = DynamicIslandView(size: Binding(get: { self.islandSize }, set: { [weak self] newSize in
             self?.islandSize = newSize
-            self?.resizeWindow(for: newSize)
-        }), onSizeChange: { [weak self] size in
-            self?.resizeWindow(for: size)
-        })
+        }), onSizeChange: { _ in })
 
-        let hostingView = NSHostingView(rootView: rootView)
+        // Use our custom PassthroughHostingView
+        let hostingView = PassthroughHostingView(rootView: rootView)
         hostingView.layer?.backgroundColor = .clear
-        hostingView.frame = NSRect(x: 0, y: 0, width: 320, height: 30)
-        panel.contentView = hostingView
+        hostingView.frame = NSRect(x: 0, y: 0, width: 800, height: 300)
         
+        hostingView.onHitTest = { [weak self] point in
+            guard let self = self else { return false }
+            let isExpanded = self.islandSize == .expanded
+            let width: CGFloat = isExpanded ? 420 : 320
+            let height: CGFloat = isExpanded ? 160 : 30
+            
+            // The island is centered horizontally in the 800px window
+            // adding some padding to make it easier to hit
+            let rect = NSRect(
+                x: (800 - width) / 2 - 20,
+                y: 300 - height - 20,
+                width: width + 40,
+                height: height + 20 // Only add padding to bottom/sides, not top (bezel)
+            )
+            return rect.contains(point)
+        }
+        
+        panel.contentView = hostingView
+
         self.window = panel
         self.centerOnScreen(panel)
         panel.orderFrontRegardless()
+
+        // Setup click monitor for collapsing when clicking outside
+        self.setupClickMonitor()
 
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             if let window = self?.window {
@@ -120,11 +156,35 @@ class DynamicIslandWindowController: NSObject, ObservableObject {
         }
     }
 
+    private func setupClickMonitor() {
+        clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            guard let self = self, self.islandSize == .expanded else { return }
+            
+            // Convert click location to window coordinates
+            if let window = self.window {
+                let screenPoint = NSEvent.mouseLocation
+                let windowPoint = window.convertPoint(fromScreen: screenPoint)
+                
+                // Check if click was NOT on the hosting view's interactive area
+                if let hostingView = window.contentView as? PassthroughHostingView<DynamicIslandView>,
+                   let onHitTest = hostingView.onHitTest {
+                    if !onHitTest(windowPoint) {
+                        self.handleOutsideClick()
+                    }
+                }
+            }
+        }
+    }
+
     func showWindow(_ sender: Any?) {
         window?.orderFrontRegardless()
     }
-    
+
     func close() {
+        if let monitor = clickMonitor {
+            NSEvent.removeMonitor(monitor)
+            clickMonitor = nil
+        }
         window?.orderOut(nil)
     }
 
@@ -138,47 +198,18 @@ class DynamicIslandWindowController: NSObject, ObservableObject {
     }
 
     private func resizeWindow(for size: DynamicIslandSize) {
-        guard let window = window, let screen = NSScreen.main else { return }
-        
-        if size == .expanded {
-            self.clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-                self?.handleOutsideClick()
-            }
-        } else {
-            if let monitor = clickMonitor {
-                NSEvent.removeMonitor(monitor)
-                self.clickMonitor = nil
-            }
-        }
-
-        let newWidth: CGFloat = (size == .collapsed) ? 320 : 420
-        let newHeight: CGFloat = (size == .collapsed) ? 30 : 179.5
-        
-        let screenFrame = screen.frame
-        let x = screenFrame.origin.x + (screenFrame.width - newWidth) / 2
-        let topEdge = screenFrame.origin.y + screenFrame.height
-        let y = topEdge - newHeight
-        
-        let newFrame = NSRect(x: x, y: y, width: newWidth, height: newHeight)
-        
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.18
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            window.animator().setFrame(newFrame, display: true)
-        }
-        window.orderFrontRegardless()
+        // Window is fixed size now, internal view animates
     }
-    
-    private func handleOutsideClick() {
+
+    func handleOutsideClick() {
         guard islandSize == .expanded else { return }
         DispatchQueue.main.async {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                 self.islandSize = .collapsed
             }
-            self.resizeWindow(for: .collapsed)
         }
     }
-    
+
     func toggle() {
         if window?.isVisible == true {
             window?.orderOut(nil)

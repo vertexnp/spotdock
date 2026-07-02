@@ -19,6 +19,8 @@
 		D10000012F8780AB00000001 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000022F8780AB00000002 /* ThemeManager.swift */; };
 		E10000012F8780AB00000001 /* DynamicIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000022F8780AB00000002 /* DynamicIslandView.swift */; };
 		F10000012F8780AB00000001 /* NowPlayingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000022F8780AB00000002 /* NowPlayingManager.swift */; };
+		A20000012F8780AB00000001 /* FFmpegUtility.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000022F8780AB00000002 /* FFmpegUtility.swift */; };
+		D10000012F8780AB09999901 /* UpdateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000022F8780AB09999902 /* UpdateManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +39,8 @@
 		D10000022F8780AB00000002 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		E10000022F8780AB00000002 /* DynamicIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicIslandView.swift; sourceTree = "<group>"; };
 		F10000022F8780AB00000002 /* NowPlayingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingManager.swift; sourceTree = "<group>"; };
+		A20000022F8780AB00000002 /* FFmpegUtility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FFmpegUtility.swift; sourceTree = "<group>"; };
+		D10000022F8780AB09999902 /* UpdateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,6 +76,8 @@
 				D10000022F8780AB00000002 /* ThemeManager.swift */,
 				E10000022F8780AB00000002 /* DynamicIslandView.swift */,
 				F10000022F8780AB00000002 /* NowPlayingManager.swift */,
+				A20000022F8780AB00000002 /* FFmpegUtility.swift */,
+				D10000022F8780AB09999902 /* UpdateManager.swift */,
 				A10000062F8780AB00000006 /* Assets.xcassets */,
 				A10000082F8780AB00000008 /* Info.plist */,
 				A10000092F8780AB00000009 /* Spotify.entitlements */,
@@ -167,6 +173,8 @@
 				D10000012F8780AB00000001 /* ThemeManager.swift in Sources */,
 				E10000012F8780AB00000001 /* DynamicIslandView.swift in Sources */,
 				F10000012F8780AB00000001 /* NowPlayingManager.swift in Sources */,
+				A20000012F8780AB00000001 /* FFmpegUtility.swift in Sources */,
+				D10000012F8780AB09999901 /* UpdateManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -24,109 +24,206 @@ class NowPlayingManager: ObservableObject {
     }
     
     func startPolling() {
-        // Reduced frequency from 1s to 3s (AppleScript is expensive)
-        timer = Timer.publish(every: 3, on: .main, in: .common)
+        // Frequency of 0.8s for responsive visualizer bars
+        timer = Timer.publish(every: 0.8, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                Task { @MainActor in
-                    // Only check browser if Spotify isn't already handled by SpotifyPlayer
-                    if !SpotifyPlayer.shared.isPlaying {
-                        self?.checkBrowserFallback()
-                    }
-                    self?.updateSystemVolume()
+                // Run AppleScript on a background thread to prevent UI freezing
+                Task.detached(priority: .userInitiated) {
+                    await self?.checkBrowserFallback()
+                    await self?.updateSystemVolume()
                 }
             }
     }
 
-    private func updateSystemVolume() {
+    private func updateSystemVolume() async {
         let scriptSource = "output volume of (get volume settings)"
         if let script = NSAppleScript(source: scriptSource) {
             var error: NSDictionary?
             let result = script.executeAndReturnError(&error)
             if error == nil {
                 let vol = Int(result.int32Value)
-                if self.systemVolume != vol {
-                    self.systemVolume = vol
+                await MainActor.run {
+                    if self.systemVolume != vol {
+                        self.systemVolume = vol
+                    }
                 }
             }
         }
     }
 
-    private func checkBrowserFallback() {
-        // Skip browser check if Spotify is playing (priority logic will handle this in View, but saving resources here)
-        // We scan all supported browsers for active YouTube tabs
+    private func checkBrowserFallback() async {
         let browsers = [
             ("com.brave.Browser", "Brave Browser"),
             ("com.google.Chrome", "Google Chrome"),
+            ("org.mozilla.firefox", "Firefox"),
             ("com.apple.Safari", "Safari")
         ]
         
+        var bestFoundTab: (bundleID: String, title: String, url: String, isPlaying: Bool, priority: Int)? = nil
+        
         for browser in browsers {
-            let scriptSource = browser.1 == "Safari" ? """
-            tell application "Safari"
-                if it is running then
-                    repeat with w in windows
-                        repeat with t in tabs of w
-                            if URL of t contains "youtube.com/watch" then
-                                return (name of t) & "|" & (URL of t)
-                            end if
-                        end repeat
-                    end repeat
-                end if
-            end tell
-            """ : """
-            tell application "\(browser.1)"
-                if it is running then
-                    repeat with w in windows
-                        repeat with t in tabs of w
-                            if URL of t contains "youtube.com/watch" then
-                                return (title of t) & "|" & (URL of t)
-                            end if
-                        end repeat
-                    end repeat
-                end if
-            end tell
-            """
+            let scriptSource: String
+            if browser.1 == "Safari" {
+                scriptSource = """
+                try
+                    if application id "com.apple.Safari" is running then
+                        tell application id "com.apple.Safari"
+                            set backupInfo to ""
+                            try
+                                repeat with w in windows
+                                    repeat with t in tabs of w
+                                        try
+                                            set theURL to URL of t
+                                            if theURL contains "youtube.com" or theURL contains "youtu.be" then
+                                                set currentInfo to (name of t) & "|" & (URL of t)
+                                                set isPlaying to false
+                                                try
+                                                    set jsResult to do JavaScript "Array.from(document.querySelectorAll('video, audio')).some(el => !el.paused && el.readyState >= 2)" in t
+                                                    if jsResult is true or jsResult is "true" or jsResult is 1 then
+                                                        set isPlaying to true
+                                                    end if
+                                                on error
+                                                    -- JS access not allowed or fails.
+                                                end try
+                                                
+                                                if isPlaying then
+                                                    return currentInfo & "|true"
+                                                end if
+                                                if backupInfo is "" then set backupInfo to currentInfo & "|false"
+                                            end if
+                                        end try
+                                    end repeat
+                                end repeat
+                            end try
+                            return backupInfo
+                        end tell
+                    end if
+                end try
+                return ""
+                """
+            } else if browser.1 == "Firefox" {
+                scriptSource = """
+                try
+                    if application id "org.mozilla.firefox" is running then
+                        tell application id "org.mozilla.firefox"
+                            try
+                                repeat with w in windows
+                                    set wName to name of w
+                                    if wName contains "YouTube" then
+                                        return wName & "|https://youtube.com|true"
+                                    end if
+                                end repeat
+                            end try
+                        end tell
+                    end if
+                end try
+                return ""
+                """
+            } else {
+                scriptSource = """
+                try
+                    if application id "\(browser.0)" is running then
+                        tell application id "\(browser.0)"
+                            set backupInfo to ""
+                            try
+                                repeat with w in windows
+                                    repeat with t in tabs of w
+                                        try
+                                            set theURL to URL of t
+                                            if theURL contains "youtube.com" or theURL contains "youtu.be" then
+                                                set currentInfo to (title of t) & "|" & theURL
+                                                set isPlaying to false
+                                                try
+                                                    tell t to set jsResult to execute javascript "Array.from(document.querySelectorAll('video, audio')).some(el => !el.paused && el.readyState >= 2)"
+                                                    if jsResult is true or jsResult is "true" or jsResult is 1 then
+                                                        set isPlaying to true
+                                                    end if
+                                                on error
+                                                    -- JS access not allowed or fails. Fallback to active tab check and checking if window title has speaker icon.
+                                                    try
+                                                        if (id of t) is (id of active tab of w) then
+                                                            set wName to name of w
+                                                            if wName contains "🔊" or wName contains "Audio" then
+                                                                set isPlaying to true
+                                                            end if
+                                                        end if
+                                                    end try
+                                                end try
+                                                
+                                                if isPlaying then
+                                                    return currentInfo & "|true"
+                                                end if
+                                                if backupInfo is "" then set backupInfo to currentInfo & "|false"
+                                            end if
+                                        end try
+                                    end repeat
+                                end repeat
+                            end try
+                            return backupInfo
+                        end tell
+                    end if
+                end try
+                return ""
+                """
+            }
             
             var error: NSDictionary?
             if let script = NSAppleScript(source: scriptSource) {
-                if let result = script.executeAndReturnError(&error).stringValue, result.contains("|") {
+                let output = script.executeAndReturnError(&error)
+                if error == nil, let result = output.stringValue, result != "", result.contains("|") {
                     let parts = result.components(separatedBy: "|")
-                    let title = parts[0]
-                    let url = parts[1]
-                    
-                    DispatchQueue.main.async {
-                        self.bundleID = browser.0
-                        var finalTitle = title
-                        if title.hasSuffix(" - YouTube") { finalTitle = String(title.dropLast(10)) }
+                    if parts.count >= 3 {
+                        let isPlaying = (parts[2] == "true")
+                        let priority = isPlaying ? 2 : 1
                         
-                        let titleParts = finalTitle.components(separatedBy: " - ")
-                        if titleParts.count >= 2 {
-                            self.trackName = titleParts[1]
-                            self.artistName = titleParts[0]
-                        } else {
-                            self.trackName = finalTitle
-                            self.artistName = "YouTube"
+                        if bestFoundTab == nil || priority > bestFoundTab!.priority {
+                            bestFoundTab = (browser.0, parts[0], parts[1], isPlaying, priority)
                         }
-                        
-                        self.isPlaying = true // If tab exists, we assume it's the active media
-                        if self.currentYouTubeURL != url {
-                            self.currentYouTubeURL = url
-                            self.fetchYouTubeThumbnail(url: url)
-                        }
+                        if isPlaying { break }
                     }
-                    return 
                 }
             }
         }
         
-        // If no YouTube tab found in any browser
-        DispatchQueue.main.async {
-            self.trackName = ""
-            self.artistName = ""
-            self.isPlaying = false
-            self.albumArt = nil
-            self.currentYouTubeURL = ""
+        if let best = bestFoundTab {
+            await MainActor.run {
+                self.bundleID = best.bundleID
+                var finalTitle = best.title
+                
+                // Clean YouTube title
+                if finalTitle.hasSuffix(" - YouTube") { finalTitle = String(finalTitle.dropLast(10)) }
+                if finalTitle.hasSuffix(" - YouTube Music") { finalTitle = String(finalTitle.dropLast(16)) }
+                if finalTitle.hasPrefix("(") && finalTitle.contains(") ") {
+                    if let range = finalTitle.range(of: ") ") {
+                        finalTitle = String(finalTitle[range.upperBound...])
+                    }
+                }
+                
+                let titleParts = finalTitle.components(separatedBy: " - ")
+                if titleParts.count >= 2 {
+                    self.trackName = titleParts[1]
+                    self.artistName = titleParts[0]
+                } else {
+                    self.trackName = finalTitle
+                    self.artistName = best.url.contains("music.youtube.com") ? "YouTube Music" : "YouTube"
+                }
+                
+                self.isPlaying = best.isPlaying
+                
+                if self.currentYouTubeURL != best.url {
+                    self.currentYouTubeURL = best.url
+                    self.fetchYouTubeThumbnail(url: best.url)
+                }
+            }
+        } else {
+            await MainActor.run {
+                self.trackName = ""
+                self.artistName = ""
+                self.isPlaying = false
+                self.albumArt = nil
+                self.currentYouTubeURL = ""
+            }
         }
     }
 
@@ -153,21 +250,7 @@ class NowPlayingManager: ObservableObject {
         return nil
     }
 
-    // Playback controls for browsers via AppleScript
-    func togglePlay() {
-        executeBrowserCommand("if (player.getPlayerState() == 1) { player.pauseVideo(); } else { player.playVideo(); }")
-    }
-
-    func nextTrack() {
-        executeBrowserCommand("window.history.forward()") // Basic fallback
-    }
-
-    func previousTrack() {
-        executeBrowserCommand("window.history.back()") // Basic fallback
-    }
-
-    private func executeBrowserCommand(_ js: String) {
-        // This is complex for general browsers, keeping it simple or skipping for now
-        // Most users prefer system keys anyway
-    }
+    func togglePlay() {}
+    func nextTrack() {}
+    func previousTrack() {}
 }

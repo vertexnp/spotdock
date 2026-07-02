@@ -68,7 +68,7 @@ class SpotifyPlayer: ObservableObject {
         pollingTimer = Timer.publish(every: 3, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                Task {
+                Task.detached(priority: .background) {
                     await self?.fetchPlayerDataFromSystem()
                 }
             }
@@ -77,8 +77,8 @@ class SpotifyPlayer: ObservableObject {
     func fetchPlayerDataFromSystem() async {
         let scriptSource = """
         try
-            if application "Spotify" is running then
-                tell application "Spotify"
+            if application id "com.spotify.client" is running then
+                tell application id "com.spotify.client"
                     set track_name to name of current track
                     set artist_name to artist of current track
                     set album_name to album of current track
@@ -215,27 +215,27 @@ class SpotifyPlayer: ObservableObject {
 
     // Playback Controls via AppleScript (Works for Free accounts)
     func togglePlay() {
-        runScript("tell application \"Spotify\" to playpause")
+        runScript("tell application id \"com.spotify.client\" to playpause")
     }
 
     func nextTrack() {
-        runScript("tell application \"Spotify\" to next track")
+        runScript("tell application id \"com.spotify.client\" to next track")
     }
 
     func previousTrack() {
-        runScript("tell application \"Spotify\" to previous track")
+        runScript("tell application id \"com.spotify.client\" to previous track")
     }
 
     func toggleShuffle() async {
-        runScript("tell application \"Spotify\" to set shuffling to not shuffling")
+        runScript("tell application id \"com.spotify.client\" to set shuffling to not shuffling")
     }
 
     func toggleRepeat() async {
-        runScript("tell application \"Spotify\" to set repeating to not repeating")
+        runScript("tell application id \"com.spotify.client\" to set repeating to not repeating")
     }
 
     func seek(to position: TimeInterval) {
-        runScript("tell application \"Spotify\" to set player position to \(position)")
+        runScript("tell application id \"com.spotify.client\" to set player position to \(position)")
     }
     
     private func runScript(_ source: String) {
