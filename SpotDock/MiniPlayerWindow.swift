@@ -6,6 +6,8 @@
 import SwiftUI
 import AppKit
 import QuartzCore
+import CoreAudio
+import IOKit.ps
 
 class MiniPlayerWindowController: NSWindowController {
     private static let savedFrameKey = "MiniPlayerWindowFrame"
@@ -75,17 +77,28 @@ class DynamicIslandPanel: NSPanel {
 // Custom HostingView that allows clicks to pass through its transparent areas
 class PassthroughHostingView<Content: View>: NSHostingView<Content> {
     var onHitTest: ((NSPoint) -> Bool)?
+    weak var controller: DynamicIslandWindowController?
+
+    // Essential for macOS background panel: guarantees the very first click is delivered immediately!
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        return true
+    }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        let view = super.hitTest(point)
-        if view == self {
-            // Only return self if the point is within our interactive area
-            if let onHitTest = onHitTest, onHitTest(point) {
-                return self
-            }
+        // Fast-path: If outside interactive island area, return nil immediately so clicks pass through to apps/desktop
+        guard let onHitTest = onHitTest, onHitTest(point) else {
             return nil
         }
-        return view
+        return super.hitTest(point)
+    }
+
+    // Direct AppKit mouse handling: when collapsed, any click opens the island 100% of the time with zero lag!
+    override func mouseDown(with event: NSEvent) {
+        if let controller = controller, controller.islandSize == .collapsed {
+            controller.expand()
+            return
+        }
+        super.mouseDown(with: event)
     }
 }
 
@@ -94,12 +107,18 @@ class DynamicIslandWindowController: NSObject, ObservableObject {
     @Published var islandSize: DynamicIslandSize = .collapsed
     var window: DynamicIslandPanel?
     private var clickMonitor: Any?
+    private var localClickMonitor: Any?
+    private var lastExpandTime: TimeInterval = 0
 
     override init() {
         super.init()
 
+        // Sized comfortably (480x205) for the expanded island wings, shadow, and tabs
+        let panelWidth: CGFloat = 480
+        let panelHeight: CGFloat = 205
+
         let panel = DynamicIslandPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 800, height: 300),
+            contentRect: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -117,24 +136,27 @@ class DynamicIslandWindowController: NSObject, ObservableObject {
             self?.islandSize = newSize
         }), onSizeChange: { _ in })
 
-        // Use our custom PassthroughHostingView
+        // Use custom PassthroughHostingView
         let hostingView = PassthroughHostingView(rootView: rootView)
+        hostingView.controller = self
         hostingView.layer?.backgroundColor = .clear
-        hostingView.frame = NSRect(x: 0, y: 0, width: 800, height: 300)
+        hostingView.frame = NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight)
         
         hostingView.onHitTest = { [weak self] point in
             guard let self = self else { return false }
             let isExpanded = self.islandSize == .expanded
-            let width: CGFloat = isExpanded ? 420 : 320
-            let height: CGFloat = isExpanded ? 160 : 30
+            let width: CGFloat = isExpanded ? 450 : 350
+            let height: CGFloat = isExpanded ? 185 : 42
             
-            // The island is centered horizontally in the 800px window
-            // adding some padding to make it easier to hit
+            let windowWidth = hostingView.bounds.width
+            let windowHeight = hostingView.bounds.height
+            
+            // Island is pinned to top of the window with top overshoot (+35)
             let rect = NSRect(
-                x: (800 - width) / 2 - 20,
-                y: 300 - height - 20,
-                width: width + 40,
-                height: height + 20 // Only add padding to bottom/sides, not top (bezel)
+                x: (windowWidth - width) / 2 - 15,
+                y: windowHeight - height - 15,
+                width: width + 30,
+                height: height + 35
             )
             return rect.contains(point)
         }
@@ -148,31 +170,66 @@ class DynamicIslandWindowController: NSObject, ObservableObject {
         // Setup click monitor for collapsing when clicking outside
         self.setupClickMonitor()
 
+        // Listen for screen layout changes
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             if let window = self?.window {
                 self?.centerOnScreen(window)
                 window.orderFrontRegardless()
             }
         }
+        
+        // Listen for user display preference changes in Settings
+        NotificationCenter.default.addObserver(forName: NSNotification.Name("SpotDockDisplayChanged"), object: nil, queue: .main) { [weak self] _ in
+            if let window = self?.window {
+                self?.centerOnScreen(window)
+                window.orderFrontRegardless()
+            }
+        }
+
+        // Start hardware monitor (AirPods / Bluetooth & Battery / Charger connection alerts)
+        HardwareMonitor.shared.start()
+    }
+
+    func expand() {
+        guard islandSize == .collapsed else { return }
+        lastExpandTime = ProcessInfo.processInfo.systemUptime
+        triggerHaptic()
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+            self.islandSize = .expanded
+        }
+    }
+
+    func collapse() {
+        guard islandSize == .expanded else { return }
+        triggerHaptic()
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+            self.islandSize = .collapsed
+        }
+    }
+
+    private func triggerHaptic() {
+        NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
     }
 
     private func setupClickMonitor() {
-        clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            guard let self = self, self.islandSize == .expanded else { return }
-            
-            // Convert click location to window coordinates
-            if let window = self.window {
-                let screenPoint = NSEvent.mouseLocation
-                let windowPoint = window.convertPoint(fromScreen: screenPoint)
-                
-                // Check if click was NOT on the hosting view's interactive area
-                if let hostingView = window.contentView as? PassthroughHostingView<DynamicIslandView>,
-                   let onHitTest = hostingView.onHitTest {
-                    if !onHitTest(windowPoint) {
-                        self.handleOutsideClick()
-                    }
+        clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            guard let self = self, self.islandSize == .expanded, let window = self.window else { return }
+            let screenPoint = NSEvent.mouseLocation
+            let windowPoint = window.convertPoint(fromScreen: screenPoint)
+            if let hostingView = window.contentView as? PassthroughHostingView<DynamicIslandView>,
+               let onHitTest = hostingView.onHitTest {
+                if !onHitTest(windowPoint) {
+                    self.handleOutsideClick()
                 }
             }
+        }
+
+        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            guard let self = self, self.islandSize == .expanded, let window = self.window else { return event }
+            if event.window != window {
+                self.handleOutsideClick()
+            }
+            return event
         }
     }
 
@@ -185,28 +242,40 @@ class DynamicIslandWindowController: NSObject, ObservableObject {
             NSEvent.removeMonitor(monitor)
             clickMonitor = nil
         }
+        if let local = localClickMonitor {
+            NSEvent.removeMonitor(local)
+            localClickMonitor = nil
+        }
         window?.orderOut(nil)
     }
 
     private func centerOnScreen(_ window: NSWindow) {
-        if let screen = NSScreen.main {
-            let screenFrame = screen.frame
-            let x = screenFrame.origin.x + (screenFrame.width - window.frame.width) / 2
-            let y = screenFrame.origin.y + screenFrame.height - window.frame.height
-            window.setFrameOrigin(NSPoint(x: x, y: y))
+        let targetDisplayID = UserDefaults.standard.string(forKey: "preferredDisplayID") ?? "main"
+        let screens = NSScreen.screens
+        let targetScreen: NSScreen
+        
+        if targetDisplayID == "builtIn", let builtIn = screens.first(where: { $0.safeAreaInsets.top > 0 }) {
+            targetScreen = builtIn
+        } else if let idNum = UInt32(targetDisplayID),
+                  let match = screens.first(where: { ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID) == idNum }) {
+            targetScreen = match
+        } else {
+            targetScreen = NSScreen.main ?? screens.first ?? window.screen ?? NSScreen.screens[0]
         }
-    }
 
-    private func resizeWindow(for size: DynamicIslandSize) {
-        // Window is fixed size now, internal view animates
+        let screenFrame = targetScreen.frame
+        let x = screenFrame.origin.x + (screenFrame.width - window.frame.width) / 2
+        let y = screenFrame.origin.y + screenFrame.height - window.frame.height
+        window.setFrameOrigin(NSPoint(x: x, y: y))
     }
 
     func handleOutsideClick() {
         guard islandSize == .expanded else { return }
+        let uptime = ProcessInfo.processInfo.systemUptime
+        guard uptime - lastExpandTime > 0.35 else { return }
+        
         DispatchQueue.main.async {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                self.islandSize = .collapsed
-            }
+            self.collapse()
         }
     }
 
@@ -215,6 +284,139 @@ class DynamicIslandWindowController: NSObject, ObservableObject {
             window?.orderOut(nil)
         } else {
             window?.orderFrontRegardless()
+        }
+    }
+}
+
+// MARK: - Hardware Monitor (AirPods & Battery Status Banners)
+class HardwareMonitor {
+    static let shared = HardwareMonitor()
+    private var lastDeviceID: AudioDeviceID = 0
+    private var isListening = false
+    private var lastChargingState: Bool? = nil
+    private var powerTimer: Timer?
+    
+    func start() {
+        guard !isListening else { return }
+        isListening = true
+        
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var initialDevice = AudioDeviceID(0)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &initialDevice)
+        self.lastDeviceID = initialDevice
+        
+        AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, DispatchQueue.main) { [weak self] _, _ in
+            self?.handleDeviceChange()
+        }
+        
+        startPowerMonitoring()
+    }
+    
+    private func handleDeviceChange() {
+        var defaultDevice = AudioDeviceID(0)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        let status = AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &defaultDevice)
+        guard status == noErr, defaultDevice != self.lastDeviceID else { return }
+        self.lastDeviceID = defaultDevice
+        
+        var nameSize = UInt32(MemoryLayout<CFString>.size)
+        var nameAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioObjectPropertyName,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var cfName: CFString = "" as CFString
+        _ = AudioObjectGetPropertyData(defaultDevice, &nameAddress, 0, nil, &nameSize, &cfName)
+        let deviceName = cfName as String
+        guard !deviceName.isEmpty else { return }
+        
+        var transport: UInt32 = 0
+        var transSize = UInt32(MemoryLayout<UInt32>.size)
+        var transAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyTransportType,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        _ = AudioObjectGetPropertyData(defaultDevice, &transAddress, 0, nil, &transSize, &transport)
+        let isBluetooth = (transport == kAudioDeviceTransportTypeBluetooth || transport == kAudioDeviceTransportTypeBluetoothLE)
+        
+        let icon: String
+        let color: Color
+        if deviceName.localizedCaseInsensitiveContains("airpod") {
+            icon = "airpodspro"
+            color = .blue
+        } else if isBluetooth || deviceName.localizedCaseInsensitiveContains("headphone") || deviceName.localizedCaseInsensitiveContains("buds") {
+            icon = "headphones"
+            color = .blue
+        } else if deviceName.localizedCaseInsensitiveContains("speaker") {
+            icon = "speaker.wave.2.fill"
+            color = .purple
+        } else {
+            icon = "hifispeaker.fill"
+            color = .gray
+        }
+        
+        Task { @MainActor in
+            IslandBannerManager.shared.post(banner: IslandBanner(
+                title: deviceName,
+                subtitle: isBluetooth ? "Connected" : "Audio Output",
+                systemImage: icon,
+                accentColor: color
+            ))
+        }
+    }
+    
+    private func startPowerMonitoring() {
+        powerTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            self?.checkPowerStatus()
+        }
+    }
+    
+    private func checkPowerStatus() {
+        guard let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+              let sources = IOPSCopyPowerSourcesList(snapshot)?.takeRetainedValue() as? [CFTypeRef] else {
+            return
+        }
+        
+        for ps in sources {
+            if let desc = IOPSGetPowerSourceDescription(snapshot, ps)?.takeUnretainedValue() as? [String: Any] {
+                let isCharging = desc[kIOPSIsChargingKey as String] as? Bool ?? false
+                let capacity = desc[kIOPSCurrentCapacityKey as String] as? Int ?? 0
+                
+                if let last = self.lastChargingState {
+                    if isCharging && !last {
+                        Task { @MainActor in
+                            IslandBannerManager.shared.post(banner: IslandBanner(
+                                title: "Power Adapter Connected",
+                                subtitle: "Charging (\(capacity)%)",
+                                systemImage: "bolt.fill",
+                                accentColor: .green
+                            ))
+                        }
+                    } else if !isCharging && last {
+                        Task { @MainActor in
+                            IslandBannerManager.shared.post(banner: IslandBanner(
+                                title: "Running on Battery",
+                                subtitle: "\(capacity)% remaining",
+                                systemImage: "battery.75",
+                                accentColor: .orange
+                            ))
+                        }
+                    }
+                }
+                self.lastChargingState = isCharging
+                break
+            }
         }
     }
 }

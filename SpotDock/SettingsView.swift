@@ -180,12 +180,13 @@ struct MainDashboardView: View {
             
             if isUniversal {
                 HStack(spacing: 6) {
-                    Image(systemName: "safari").font(.caption)
-                    Text("YouTube Browser Playback").font(.caption).fontWeight(.semibold)
+                    Image(systemName: universalPlayer.mediaPlatform.iconName).font(.caption)
+                    Text("\(universalPlayer.mediaPlatform.rawValue) Playback").font(.caption).fontWeight(.semibold)
                 }
+                .foregroundColor(universalPlayer.mediaPlatform.brandColor)
                 .padding(.vertical, 6)
                 .padding(.horizontal, 12)
-                .background(Color.accentColor.opacity(0.1))
+                .background(universalPlayer.mediaPlatform.brandColor.opacity(0.12))
                 .cornerRadius(8)
                 .padding(.top, 8)
             }
@@ -211,17 +212,38 @@ struct MainDashboardView: View {
 // MARK: - Components
 struct ComponentSettingsView: View {
     @StateObject private var player = SpotifyPlayer.shared
+    @AppStorage("preferredDisplayID") private var preferredDisplayID = "main"
     @Binding var miniPlayerController: MiniPlayerWindowController?
     @Binding var dynamicIslandController: DynamicIslandWindowController?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            SettingCard(title: "Dynamic Island", subtitle: "Integrates playback into the top notch of your display.", icon: "dock.arrow.up.rectangle") {
+            SettingCard(title: "Dynamic Island", subtitle: "Integrates playback, file shelf, and timer into the top notch.", icon: "dock.arrow.up.rectangle") {
                 Toggle("", isOn: $player.showDynamicIsland)
                     .toggleStyle(.switch)
                     .onChange(of: player.showDynamicIsland) { _, newValue in
                         updateDI(newValue)
                     }
+            }
+            
+            SettingCard(title: "Display Monitor", subtitle: "Choose which monitor the Dynamic Island snaps to.", icon: "display.2") {
+                Picker("", selection: $preferredDisplayID) {
+                    Text("Main Screen (Active)").tag("main")
+                    if NSScreen.screens.contains(where: { $0.safeAreaInsets.top > 0 }) {
+                        Text("Built-in Display (Notch)").tag("builtIn")
+                    }
+                    ForEach(NSScreen.screens, id: \.self) { screen in
+                        if let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID {
+                            Text("\(screen.localizedName) (\(Int(screen.frame.width))×\(Int(screen.frame.height)))")
+                                .tag(String(id))
+                        }
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 190)
+                .onChange(of: preferredDisplayID) { _, _ in
+                    NotificationCenter.default.post(name: NSNotification.Name("SpotDockDisplayChanged"), object: nil)
+                }
             }
             
             SettingCard(title: "Mini Player", subtitle: "A floating, draggable player window that stays on top.", icon: "macwindow") {
@@ -256,7 +278,7 @@ struct AdvancedSettingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            SettingCard(title: "Universal Now Playing", subtitle: "Show music from browsers (YouTube) when Spotify is idle.", icon: "safari") {
+            SettingCard(title: "Universal Media Support", subtitle: "Play and control Apple Music, YouTube, and SoundCloud when Spotify is idle.", icon: "globe") {
                 Toggle("", isOn: $player.useUniversalNowPlaying).toggleStyle(.switch)
             }
             

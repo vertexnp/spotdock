@@ -49,6 +49,31 @@ class SpotifyPlayer: ObservableObject {
     private var pollingTimer: AnyCancellable?
     private var notificationObservers: [AnyCancellable] = []
 
+    private lazy var spotifyStateScript: NSAppleScript? = {
+        let scriptSource = """
+        try
+            tell application id "com.spotify.client"
+                set track_name to name of current track
+                set artist_name to artist of current track
+                set album_name to album of current track
+                set track_id to id of current track
+                set player_state to player state as string
+                set track_duration to duration of current track
+                set track_position to player position
+                set art_url to artwork url of current track
+                set is_shuffled to shuffling
+                set repeat_mode to repeating
+                return track_name & "||" & artist_name & "||" & album_name & "||" & track_id & "||" & player_state & "||" & track_duration & "||" & track_position & "||" & art_url & "||" & is_shuffled & "||" & repeat_mode
+            end tell
+        on error
+            return "Error"
+        end try
+        """
+        let script = NSAppleScript(source: scriptSource)
+        script?.compileAndReturnError(nil)
+        return script
+    }()
+
     private init() {
         setupNotificationObservers()
     }
@@ -75,32 +100,21 @@ class SpotifyPlayer: ObservableObject {
     }
 
     func fetchPlayerDataFromSystem() async {
-        let scriptSource = """
-        try
-            if application id "com.spotify.client" is running then
-                tell application id "com.spotify.client"
-                    set track_name to name of current track
-                    set artist_name to artist of current track
-                    set album_name to album of current track
-                    set track_id to id of current track
-                    set player_state to player state as string
-                    set track_duration to duration of current track
-                    set track_position to player position
-                    set art_url to artwork url of current track
-                    set is_shuffled to shuffling
-                    set repeat_mode to repeating
-                    return track_name & "||" & artist_name & "||" & album_name & "||" & track_id & "||" & player_state & "||" & track_duration & "||" & track_position & "||" & art_url & "||" & is_shuffled & "||" & repeat_mode
-                end tell
-            else
-                return "Not Running"
-            end if
-        on error
-            return "Error"
-        end try
-        """
-        
+        // Check if Spotify is running first - 0 AppleScript overhead if not running
+        guard !NSRunningApplication.runningApplications(withBundleIdentifier: "com.spotify.client").isEmpty else {
+            await MainActor.run {
+                if self.isPlaying || !self.trackName.isEmpty {
+                    self.trackName = ""
+                    self.artistName = ""
+                    self.isPlaying = false
+                    self.albumArtURL = ""
+                }
+            }
+            return
+        }
+
         var error: NSDictionary?
-        if let script = NSAppleScript(source: scriptSource) {
+        if let script = spotifyStateScript {
             let output = script.executeAndReturnError(&error)
             if error != nil { return }
             
@@ -203,14 +217,7 @@ class SpotifyPlayer: ObservableObject {
     }
 
     private func updateSystemVolume() {
-        let scriptSource = "output volume of (get volume settings)"
-        if let script = NSAppleScript(source: scriptSource) {
-            var error: NSDictionary?
-            let result = script.executeAndReturnError(&error)
-            if error == nil {
-                self.volume = Int(result.int32Value)
-            }
-        }
+        self.volume = AudioHelper.getSystemVolume()
     }
 
     // Playback Controls via AppleScript (Works for Free accounts)
